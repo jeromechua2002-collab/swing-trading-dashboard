@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Swing Trading Market Dashboard</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#151922; --panel2:#111722; --border:#252b36;
+      --text:#eef2f7; --muted:#8f9baa; --accent:#25a06b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    .wrap{max-width:1500px;margin:0 auto;padding:18px}
+    .top{
+      display:flex;justify-content:space-between;gap:14px;align-items:flex-end;
+      margin-bottom:14px;flex-wrap:wrap
+    }
+    h1{font-size:22px;margin:0 0 4px;font-weight:750}
+    .sub{font-size:13px;color:var(--muted)}
+    .badge{
+      border:1px solid var(--border);background:var(--panel);border-radius:999px;
+      padding:7px 10px;font-size:12px;color:#b9c3cf
+    }
+    .panel{
+      background:var(--panel);border:1px solid var(--border);border-radius:14px;
+      overflow:hidden;margin-bottom:14px;
+    }
+    .panel-head{
+      padding:12px 14px;border-bottom:1px solid var(--border);
+      display:flex;justify-content:space-between;align-items:center;gap:10px
+    }
+    .panel-title{font-size:14px;font-weight:700}
+    .panel-note{font-size:12px;color:var(--muted)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .widget{height:520px}
+    .overview{height:590px}
+    .footer{
+      color:var(--muted);font-size:11px;line-height:1.5;padding:0 2px 10px
+    }
+    @media(max-width:900px){
+      .grid2{grid-template-columns:1fr}
+      .widget{height:460px}
+      .overview{height:650px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Swing Trading Market Dashboard</h1>
+        <div class="sub">Broad market · sector rotation · semiconductors · volatility · rates</div>
+      </div>
+      <div class="badge">TradingView external widgets · Notion native-chart quota unaffected</div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Market Overview</div>
+        <div class="panel-note">Use tabs to move between broad market, growth, rotation and macro</div>
+      </div>
+      <div class="overview">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+          {
+            "colorTheme":"dark",
+            "dateRange":"3M",
+            "showChart":true,
+            "locale":"en",
+            "largeChartUrl":"",
+            "isTransparent":true,
+            "showSymbolLogo":true,
+            "showFloatingTooltip":false,
+            "width":"100%",
+            "height":"100%",
+            "plotLineColorGrowing":"rgba(37, 160, 107, 1)",
+            "plotLineColorFalling":"rgba(229, 83, 83, 1)",
+            "gridLineColor":"rgba(42, 46, 57, 0.35)",
+            "scaleFontColor":"rgba(143, 155, 170, 1)",
+            "belowLineFillColorGrowing":"rgba(37, 160, 107, 0.10)",
+            "belowLineFillColorFalling":"rgba(229, 83, 83, 0.10)",
+            "belowLineFillColorGrowingBottom":"rgba(37, 160, 107, 0)",
+            "belowLineFillColorFallingBottom":"rgba(229, 83, 83, 0)",
+            "symbolActiveColor":"rgba(37, 160, 107, 0.14)",
+            "tabs":[
+              {
+                "title":"Broad Market",
+                "symbols":[
+                  {"s":"AMEX:SPY","d":"S&P 500 ETF"},
+                  {"s":"NASDAQ:QQQ","d":"Nasdaq 100 ETF"},
+                  {"s":"AMEX:IWM","d":"Russell 2000 ETF"},
+                  {"s":"AMEX:DIA","d":"Dow ETF"}
+                ]
+              },
+              {
+                "title":"Growth",
+                "symbols":[
+                  {"s":"AMEX:XLK","d":"Technology"},
+                  {"s":"AMEX:XLY","d":"Consumer Discretionary"},
+                  {"s":"AMEX:XLC","d":"Communication Services"},
+                  {"s":"NASDAQ:SOXX","d":"Semiconductors"}
+                ]
+              },
+              {
+                "title":"Rotation",
+                "symbols":[
+                  {"s":"AMEX:XLU","d":"Utilities"},
+                  {"s":"AMEX:XLRE","d":"Real Estate"},
+                  {"s":"AMEX:XLP","d":"Consumer Staples"},
+                  {"s":"AMEX:XLI","d":"Industrials"},
+                  {"s":"AMEX:XLB","d":"Materials"},
+                  {"s":"AMEX:XLF","d":"Financials"},
+                  {"s":"AMEX:XLV","d":"Health Care"},
+                  {"s":"AMEX:XLE","d":"Energy"}
+                ]
+              },
+              {
+                "title":"Macro",
+                "symbols":[
+                  {"s":"CBOE:VIX","d":"VIX"},
+                  {"s":"TVC:DXY","d":"US Dollar Index"},
+                  {"s":"TVC:US02Y","d":"US 2Y Yield"},
+                  {"s":"TVC:US10Y","d":"US 10Y Yield"},
+                  {"s":"TVC:US30Y","d":"US 30Y Yield"}
+                ]
+              }
+            ]
+          }
+          </script>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid2">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">QQQ Structure</div>
+          <div class="panel-note">Primary growth-risk reference</div>
+        </div>
+        <div class="widget">
+          <div class="tradingview-widget-container" style="height:100%;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+            {
+              "autosize":true,
+              "symbol":"NASDAQ:QQQ",
+              "interval":"60",
+              "timezone":"Asia/Singapore",
+              "theme":"dark",
+              "style":"1",
+              "locale":"en",
+              "allow_symbol_change":true,
+              "calendar":false,
+              "support_host":"https://www.tradingview.com"
+            }
+            </script>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">SOXX Structure</div>
+          <div class="panel-note">Primary semiconductor reference</div>
+        </div>
+        <div class="widget">
+          <div class="tradingview-widget-container" style="height:100%;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+            {
+              "autosize":true,
+              "symbol":"NASDAQ:SOXX",
+              "interval":"60",
+              "timezone":"Asia/Singapore",
+              "theme":"dark",
+              "style":"1",
+              "locale":"en",
+              "allow_symbol_change":true,
+              "calendar":false,
+              "support_host":"https://www.tradingview.com"
+            }
+            </script>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">
+      This page is intentionally read-only and market-data focused. Trade P/L, journaling and account equity remain in Notion.
+    </div>
+  </div>
+</body>
+</html>

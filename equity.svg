@@ -2,22 +2,22 @@
 <rect width="1200" height="430" fill="#0f1115"/>
 <rect x="10" y="10" width="1180" height="410" rx="16" fill="#151922" stroke="#252b36"/>
 <text x="40" y="48" fill="#eef2f7" font-size="24" font-family="Arial" font-weight="700">Account Equity / Capital Curve</text>
-<text x="40" y="72" fill="#8f9baa" font-size="13" font-family="Arial">S$5,000 starting capital · through Trade #6</text>
+<text x="40" y="72" fill="#8f9baa" font-size="13" font-family="Arial">S$5,000 starting capital · through Trade #7 · FX for Trade #7: 1 USD = 1.28 SGD</text>
 <g stroke="#2b313d" stroke-width="1">
 <line x1="90" y1="100" x2="1150" y2="100"/><line x1="90" y1="170" x2="1150" y2="170"/><line x1="90" y1="240" x2="1150" y2="240"/><line x1="90" y1="310" x2="1150" y2="310"/><line x1="90" y1="380" x2="1150" y2="380"/>
 </g>
 <g fill="#8f9baa" font-size="12" font-family="Arial">
 <text x="20" y="104">S$5,400</text><text x="20" y="174">S$5,300</text><text x="20" y="244">S$5,200</text><text x="20" y="314">S$5,100</text><text x="20" y="384">S$5,000</text>
 </g>
-<polygon points="110,380 275,367 440,346 605,145 770,214 935,288 1100,175 1100,380 110,380" fill="#28a36a" fill-opacity=".12"/>
-<polyline points="110,380 275,367 440,346 605,145 770,214 935,288 1100,175" fill="none" stroke="#28a36a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="110,380 250,367 390,347 530,145 670,214 810,289 950,176 1090,236 1090,380 110,380" fill="#28a36a" fill-opacity=".12"/>
+<polyline points="110,380 250,367 390,347 530,145 670,214 810,289 950,176 1090,236" fill="none" stroke="#28a36a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 <g stroke="#0f1115" stroke-width="3">
-<circle cx="110" cy="380" r="7" fill="#28a36a"/><circle cx="275" cy="367" r="7" fill="#28a36a"/><circle cx="440" cy="346" r="7" fill="#28a36a"/><circle cx="605" cy="145" r="7" fill="#28a36a"/><circle cx="770" cy="214" r="7" fill="#e45757"/><circle cx="935" cy="288" r="7" fill="#e45757"/><circle cx="1100" cy="175" r="7" fill="#28a36a"/>
+<circle cx="110" cy="380" r="7" fill="#28a36a"/><circle cx="250" cy="367" r="7" fill="#28a36a"/><circle cx="390" cy="347" r="7" fill="#28a36a"/><circle cx="530" cy="145" r="7" fill="#28a36a"/><circle cx="670" cy="214" r="7" fill="#e45757"/><circle cx="810" cy="289" r="7" fill="#e45757"/><circle cx="950" cy="176" r="7" fill="#28a36a"/><circle cx="1090" cy="236" r="7" fill="#e45757"/>
 </g>
 <g fill="#eef2f7" font-size="12" font-family="Arial" text-anchor="middle">
-<text x="110" y="405">Start</text><text x="275" y="405">RAM</text><text x="440" y="405">DAMD</text><text x="605" y="405">SOXS</text><text x="770" y="405">SOXL</text><text x="935" y="405">SOXS</text><text x="1100" y="405">MUZ</text>
+<text x="110" y="405">Start</text><text x="250" y="405">RAM</text><text x="390" y="405">DAMD</text><text x="530" y="405">SOXS</text><text x="670" y="405">SOXL</text><text x="810" y="405">SOXS</text><text x="950" y="405">MUZ</text><text x="1090" y="405">SOXL</text>
 </g>
 <g fill="#eef2f7" font-size="16" font-family="Arial" font-weight="700">
-<text x="840" y="50">Current: S$5,291.68</text><text x="840" y="72">Return: +5.83%</text>
+<text x="840" y="50">Current: S$5,205.16</text><text x="840" y="72">Return: +4.10%</text>
 </g>
 </svg>

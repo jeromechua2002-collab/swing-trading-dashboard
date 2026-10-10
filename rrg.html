@@ -138,7 +138,7 @@ body{overflow-x:hidden}
     </div>
     <div class="side-card">
       <h3>Calculation</h3>
-      <div class="notice"><strong>Calibrated public approximation:</strong><br>RS = Asset Close / Benchmark Close<br>RS-Ratio = 100 × MA8(RS) / MA18(RS)<br>RS-Momentum = 100 × RS-Ratio / MA4(RS-Ratio)<br><br>Uses <strong>raw closes</strong>. Calibrated against the 9 Oct EdgeRater sector + industry references. This is not the proprietary JdK formula.</div>
+      <div class="notice"><strong>EdgeRater-style public approximation:</strong><br>RS = Asset Close / Benchmark Close<br>RS-Ratio = normalize(WMA10(RS), 16 bars) around 100<br>RS-Momentum = normalize(WMA4(ROC5(RS-Ratio)), 16 bars) around 100<br><br>Uses <strong>raw closes</strong> and the same bar-count parameters across timeframes. Calibrated against the 9 Oct EdgeRater sector + industry references. This is not the proprietary JdK/EdgeRater formula.</div>
     </div>
     <div class="side-card">
       <h3>Data Health</h3>
@@ -543,7 +543,7 @@ function renderHealth(){
       (active.industry_coverage||0)+"/"+expectedIndustries+" industries · "+
       (active.stock_coverage||0)+" stocks<br><br>"+
     "<strong>Latest benchmark bars</strong><br>"+barRows+
-    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 14/16 industry quadrants.";
+    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants.";
 }
 function fullRender(){
   setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();

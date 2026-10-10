@@ -16,10 +16,11 @@ SECTOR_GROUPS = {
 }
 
 INDUSTRY_GROUPS = {
-    "Technology": ["SOXX", "IGV"],
-    "Cyclicals": ["XRT", "ITB", "ITA"],
-    "Financial / Health": ["KRE", "XBI"],
-    "Energy": ["XOP", "OIH"],
+    "Technology / Internet": ["SMH", "IGV", "FDN"],
+    "Energy / Materials": ["XOP", "OIH", "XME", "TAN", "PBW"],
+    "Financial / Real Estate": ["KRE", "KIE", "VNQ"],
+    "Consumer / Industrials": ["XRT", "ITB", "ITA", "JETS"],
+    "Health": ["IBB"],
 }
 
 # First stock drill-down universe. The UI keeps these behind the Stocks layer,
@@ -244,7 +245,11 @@ def main() -> None:
     # Calibration/audit snapshot: recent daily closes for SPY + sector ETFs.
     # This lets us independently reproduce and compare candidate RRG formulas.
     audit_cfg = CONFIGS["1D"]
-    audit_tickers = sorted({MARKET_BENCHMARK, *[t for group in SECTOR_GROUPS.values() for t in group]})
+    audit_tickers = sorted({
+        MARKET_BENCHMARK,
+        *[t for group in SECTOR_GROUPS.values() for t in group],
+        *[t for group in INDUSTRY_GROUPS.values() for t in group],
+    })
     audit_data = download_prices(audit_tickers, audit_cfg)
     audit_prices = {}
     for ticker in audit_tickers:

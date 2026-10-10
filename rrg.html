@@ -31,7 +31,7 @@ body{overflow-x:hidden}
 .panel-head2 strong{font-size:12px}.panel-head2 span{font-size:10px;color:var(--muted)}
 #benchmarkChart{width:100%;height:115px;display:block}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:12px}
-.rrg-panel{overflow:hidden}.plot-wrap{position:relative}.plot-area{width:100%;height:650px;display:block}
+.rrg-panel{overflow:hidden}.plot-wrap{position:relative}.plot-area{width:100%;height:590px;display:block}
 .side{display:flex;flex-direction:column;gap:10px}.side-card{padding:11px}.side-card h3{font-size:12px;margin:0 0 8px}
 .symbol-group{margin-top:10px}.symbol-group:first-child{margin-top:0}.group-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#7f8b99;margin-bottom:4px}
 .symbol-row{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10.5px;cursor:pointer}
@@ -92,6 +92,10 @@ body{overflow-x:hidden}
       <option value="10">10 bars</option>
       <option value="12">12 bars</option>
       <option value="16">16 bars</option>
+    </select>
+    <select id="viewport" class="ctrl-select">
+      <option value="focus" selected>Focus view</option>
+      <option value="full">Full tails</option>
     </select>
     <button id="showAll" class="ctrl">Show all</button>
   </div>
@@ -164,6 +168,7 @@ if(!["sectors","industries","stocks"].includes(mode)) mode="sectors";
 let stockSector=Q.get("sector") || "XLK";
 let tf="1D";
 let trail=8;
+let viewportMode="focus";
 let benchmark="SPY";
 let payload=null;
 let stockPayload=null;
@@ -173,6 +178,7 @@ const benchSvg=document.getElementById("benchmarkChart");
 const tip=document.getElementById("tip");
 const NS="http://www.w3.org/2000/svg";
 const COLORS={Leading:"#3bb273",Weakening:"#d7a928",Lagging:"#dc5e69",Improving:"#4f8fdc"};
+const SYMBOL_COLORS=["#53a6ff","#ff6f91","#65d39a","#f2b84b","#a889ff","#55c8d8","#ff8b5c","#8dc85a","#dd76d8","#73a4ff","#d0b84f","#57b5a8","#e97777","#8e9ce9","#c68d5c","#69c57f"];
 const BGS={Leading:"rgba(59,178,115,.11)",Weakening:"rgba(215,169,40,.11)",Lagging:"rgba(220,94,105,.105)",Improving:"rgba(79,143,220,.11)"};
 
 function E(tag,attrs,text){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{})) n.setAttribute(k,v);if(text)n.textContent=text;return n}
@@ -210,6 +216,16 @@ function cosine(a,b){
 function allSectorTickers(){return Object.values(payload.universes.sectors).flat()}
 function allIndustryTickers(){return Object.values(payload.universes.industries).flat()}
 function stockTickers(){return (stockPayload&&stockPayload.members)||[]}
+function symbolOrder(){
+  if(mode==="sectors")return allSectorTickers();
+  if(mode==="industries")return allIndustryTickers();
+  return stockTickers();
+}
+function symbolColor(t){
+  const list=symbolOrder();
+  const i=Math.max(0,list.indexOf(t));
+  return SYMBOL_COLORS[i%SYMBOL_COLORS.length];
+}
 function dataBlock(){
   const b=payload.timeframes[tf];
   if(mode==="sectors") return b.sectors||{};
@@ -294,7 +310,9 @@ function buildSymbolList(){
       const checkbox=document.createElement("input");
       checkbox.type="checkbox";checkbox.checked=selected.has(t);checkbox.dataset.t=t;
       checkbox.addEventListener("change",e=>{e.target.checked?selected.add(t):selected.delete(t);renderPlot()});
-      const tickerLabel=document.createElement("span");tickerLabel.className="ticker";tickerLabel.textContent=t;
+      const tickerLabel=document.createElement("span");tickerLabel.className="ticker";
+      const sw=document.createElement("span");sw.style.cssText="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:"+symbolColor(t);
+      tickerLabel.appendChild(sw);tickerLabel.appendChild(document.createTextNode(t));
       tickerLabel.addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
       const m=signalMetrics(db[t]);
       const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);quadLabel.textContent=q+" · "+directionLabel(m);
@@ -308,12 +326,21 @@ function buildSymbolList(){
 }
 function extents(tickers){
   let xs=[],ys=[];
-  tickers.forEach(t=>(dataBlock()[t]||[]).slice(-trail).forEach(p=>{xs.push(p.ratio);ys.push(p.momentum)}));
-  if(!xs.length)return[97,103,97,103];
-  let xmin=Math.min(...xs,100),xmax=Math.max(...xs,100),ymin=Math.min(...ys,100),ymax=Math.max(...ys,100);
-  const span=Math.max(xmax-xmin,ymax-ymin,2.4);
-  const cx=(xmin+xmax)/2,cy=(ymin+ymax)/2,pad=span*.16;
-  return[cx-span/2-pad,cx+span/2+pad,cy-span/2-pad,cy+span/2+pad];
+  tickers.forEach(t=>{
+    const arr=(dataBlock()[t]||[]).slice(-trail);
+    const use=viewportMode==="focus"?arr.slice(-Math.min(4,arr.length)):arr;
+    use.forEach(p=>{xs.push(p.ratio);ys.push(p.momentum)});
+    const head=arr[arr.length-1];
+    if(head){xs.push(head.ratio);ys.push(head.momentum)}
+  });
+  if(!xs.length)return[97.5,102.5,97.5,102.5];
+
+  // Keep SPY's 100/100 cross exactly at the visual centre.
+  const maxDx=Math.max(.9,...xs.map(x=>Math.abs(x-100)));
+  const maxDy=Math.max(.9,...ys.map(y=>Math.abs(y-100)));
+  const xRadius=Math.max(1.15,maxDx*1.18);
+  const yRadius=Math.max(1.15,maxDy*1.18);
+  return[100-xRadius,100+xRadius,100-yRadius,100+yRadius];
 }
 function renderBenchmark(){
   benchSvg.innerHTML="";
@@ -327,6 +354,41 @@ function renderBenchmark(){
   const last=arr[arr.length-1];benchSvg.appendChild(E("circle",{cx:X(arr.length-1),cy:Y(last.close),r:4.5,fill:"#e7edf4"}));
   benchSvg.appendChild(E("text",{x:W-R,y:16,fill:"#9aa7b6","font-size":"10","text-anchor":"end"},benchmark+" "+last.close.toFixed(2)));
 }
+function placeTickerLabel(t,cx,cy,headR,occupied,L,R,T,B,W,H){
+  const approxW=Math.max(28,t.length*8+8),approxH=17;
+  const candidates=[
+    {dx:headR+7,dy:-headR-3,anchor:"start"},
+    {dx:headR+7,dy:headR+12,anchor:"start"},
+    {dx:-headR-7,dy:-headR-3,anchor:"end"},
+    {dx:-headR-7,dy:headR+12,anchor:"end"},
+    {dx:headR+18,dy:3,anchor:"start"},
+    {dx:-headR-18,dy:3,anchor:"end"},
+    {dx:0,dy:-headR-10,anchor:"middle"},
+    {dx:0,dy:headR+18,anchor:"middle"}
+  ];
+  function boxFor(c){
+    const tx=cx+c.dx,ty=cy+c.dy;
+    const left=c.anchor==="end"?tx-approxW:c.anchor==="middle"?tx-approxW/2:tx;
+    return{left,right:left+approxW,top:ty-approxH,bottom:ty+3,tx,ty,anchor:c.anchor};
+  }
+  function overlaps(a,b){return !(a.right+4<b.left||a.left-4>b.right||a.bottom+3<b.top||a.top-3>b.bottom)}
+  let chosen=null;
+  for(const c of candidates){
+    const b=boxFor(c);
+    if(b.left<L+3||b.right>W-R-3||b.top<T+3||b.bottom>H-B-3)continue;
+    if(!occupied.some(o=>overlaps(b,o))){chosen=b;break}
+  }
+  if(!chosen){
+    chosen=boxFor(candidates[0]);
+    chosen.left=Math.max(L+3,Math.min(chosen.left,W-R-approxW-3));
+    chosen.right=chosen.left+approxW;
+    chosen.tx=chosen.left;
+    chosen.anchor="start";
+  }
+  occupied.push(chosen);
+  return chosen;
+}
+
 function renderPlot(){
   svg.innerHTML="";
   const db=dataBlock();
@@ -335,6 +397,12 @@ function renderPlot(){
   const W=1000,H=650,L=68,R=28,T=28,B=54,iw=W-L-R,ih=H-T-B;
   const X=x=>L+(x-xmin)/(xmax-xmin)*iw,Y=y=>T+(ymax-y)/(ymax-ymin)*ih;
   const x0=X(100),y0=Y(100);
+  const occupiedLabels=[];
+  const defs=E("defs");
+  const clip=E("clipPath",{id:"plotClip"});
+  clip.appendChild(E("rect",{x:L,y:T,width:iw,height:ih}));
+  defs.appendChild(clip);svg.appendChild(defs);
+  const trailLayer=E("g",{"clip-path":"url(#plotClip)"});svg.appendChild(trailLayer);
 
   svg.appendChild(E("rect",{x:L,y:T,width:Math.max(0,x0-L),height:Math.max(0,y0-T),fill:BGS.Improving}));
   svg.appendChild(E("rect",{x:x0,y:T,width:Math.max(0,W-R-x0),height:Math.max(0,y0-T),fill:BGS.Leading}));
@@ -357,21 +425,25 @@ function renderPlot(){
 
   tickers.forEach(t=>{
     const arr=db[t].slice(-trail);if(arr.length<2)return;
-    const head=arr[arr.length-1],q=quadrant(head.ratio,head.momentum),c=COLORS[q];
+    const head=arr[arr.length-1],q=quadrant(head.ratio,head.momentum),c=symbolColor(t);
     const sm=signalMetrics(arr);
     const dist=sm.distance;
     const width=sm.clarity==="strong"?Math.min(4.8,2.5+dist*.45):sm.clarity==="developing"?Math.min(3.4,1.9+dist*.32):1.35;
     const dash=sm.clarity==="weak"?"5 5":"";
     for(let i=1;i<arr.length;i++){
       const a=arr[i-1],b=arr[i],opacity=.16+.74*(i/(arr.length-1));
-      svg.appendChild(E("line",{x1:X(a.ratio),y1:Y(a.momentum),x2:X(b.ratio),y2:Y(b.momentum),stroke:c,"stroke-width":width,"stroke-linecap":"round","stroke-dasharray":dash,opacity:sm.clarity==="weak"?Math.min(opacity,.46):opacity}));
+      trailLayer.appendChild(E("line",{x1:X(a.ratio),y1:Y(a.momentum),x2:X(b.ratio),y2:Y(b.momentum),stroke:c,"stroke-width":width,"stroke-linecap":"round","stroke-dasharray":dash,opacity:sm.clarity==="weak"?Math.min(opacity,.46):opacity}));
     }
-    arr.slice(0,-1).forEach((p,i)=>svg.appendChild(E("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.8,fill:c,opacity:.18+.58*(i/Math.max(1,arr.length-2))})));
+    arr.slice(0,-1).forEach((p,i)=>trailLayer.appendChild(E("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.8,fill:c,opacity:.18+.58*(i/Math.max(1,arr.length-2))})));
     const cx=X(head.ratio),cy=Y(head.momentum);
     const headR=sm.clarity==="strong"?13.5:sm.clarity==="developing"?11.5:9.5;
     svg.appendChild(E("circle",{cx,cy,r:headR,fill:c,stroke:"#f4f7fa","stroke-width":sm.clarity==="strong"?"3.2":"2.4"}));
     svg.appendChild(E("circle",{cx,cy,r:5.2,fill:"#10151d",opacity:".24"}));
-    svg.appendChild(E("text",{x:cx+14,y:cy-12,fill:"#f3f6f9","font-size":"12","font-weight":"750","paint-order":"stroke",stroke:"#0a0d12","stroke-width":"4"},t));
+    const lp=placeTickerLabel(t,cx,cy,headR,occupiedLabels,L,R,T,B,W,H);
+    if(Math.hypot(lp.tx-cx,lp.ty-cy)>headR+10){
+      svg.appendChild(E("line",{x1:cx,y1:cy,x2:lp.tx,y2:lp.ty-4,stroke:c,"stroke-width":"1",opacity:".55"}));
+    }
+    svg.appendChild(E("text",{x:lp.tx,y:lp.ty,fill:"#f3f6f9","font-size":"12","font-weight":"750","text-anchor":lp.anchor,"paint-order":"stroke",stroke:"#0a0d12","stroke-width":"4"},t));
     const hit=E("circle",{cx,cy,r:22,fill:"transparent"});svg.appendChild(hit);
     hit.style.cursor=mode==="sectors"?"pointer":"default";
     hit.addEventListener("mousemove",e=>{
@@ -482,6 +554,7 @@ document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=
   resetSelection();fullRender();
 }));
 document.getElementById("trail").addEventListener("change",e=>{trail=+e.target.value;renderPlot()});
+document.getElementById("viewport").addEventListener("change",e=>{viewportMode=e.target.value;renderPlot()});
 document.getElementById("showAll").addEventListener("click",()=>{resetSelection();buildSymbolList();renderPlot()});
 document.getElementById("sectorSelect").addEventListener("change",async e=>{
   stockSector=e.target.value;benchmark="SPY";history.replaceState(null,"","rrg.html?mode=stocks&sector="+stockSector);

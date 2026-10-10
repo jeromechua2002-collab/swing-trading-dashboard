@@ -47,9 +47,11 @@ CONFIGS = {
     "4H": {"period": "60d", "interval": "1h", "synthetic_hours": 4},
     "1H": {"period": "60d", "interval": "1h"},
 }
-RS_SHORT = 8
-RS_LONG = 18
-MOMENTUM_MA = 4
+SMOOTH_WMA = 10
+NORMALIZE_WINDOW = 16
+MOMENTUM_ROC = 5
+MOMENTUM_WMA = 4
+NORMALIZE_SCALE = 1.0
 TAIL_POINTS = 16
 
 
@@ -76,23 +78,27 @@ def rrg_public_approx(asset: pd.Series, benchmark: pd.Series) -> pd.DataFrame:
     ).dropna()
     pair = pair[(pair["asset"] > 0) & (pair["benchmark"] > 0)]
 
-    # Calibrated public RRG approximation.
-    # RS = 100 * price / benchmark.
-    # RS-Ratio compares an 8-bar relative-strength trend with an 18-bar trend.
-    # RS-Momentum compares the current RS-Ratio with its 4-bar mean.
+    # EdgeRater-calibrated public approximation:
+    # 1) price-relative series = 100 * asset close / benchmark close
+    # 2) smooth the relative-strength series with a trailing WMA
+    # 3) normalize that smoothed series around 100 over a trailing window
+    # 4) calculate ROC of RS-Ratio
+    # 5) smooth the ROC and normalize it around 100 using the same window
     #
-    # These parameters were validated against the user's 2026-10-09
-    # EdgeRater sector + industry reference snapshots. They are not the
-    # proprietary JdK formula and should never be described as exact JdK.
+    # This matches EdgeRater's published methodology family. The exact
+    # proprietary JdK/EdgeRater implementation remains undisclosed.
     rs = 100.0 * pair["asset"] / pair["benchmark"]
-    short_rs = rs.rolling(RS_SHORT, min_periods=RS_SHORT).mean()
-    long_rs = rs.rolling(RS_LONG, min_periods=RS_LONG).mean()
-    rs_ratio = 100.0 * short_rs / long_rs
 
-    ratio_mean = rs_ratio.rolling(
-        MOMENTUM_MA, min_periods=MOMENTUM_MA
-    ).mean()
-    rs_momentum = 100.0 * rs_ratio / ratio_mean
+    smoothed_rs = wma(rs, SMOOTH_WMA)
+    ratio_z = rolling_zscore(smoothed_rs, NORMALIZE_WINDOW)
+    rs_ratio = 100.0 + NORMALIZE_SCALE * ratio_z
+
+    roc = 100.0 * (
+        rs_ratio / rs_ratio.shift(MOMENTUM_ROC) - 1.0
+    )
+    smoothed_roc = wma(roc, MOMENTUM_WMA)
+    momentum_z = rolling_zscore(smoothed_roc, NORMALIZE_WINDOW)
+    rs_momentum = 100.0 + NORMALIZE_SCALE * momentum_z
 
     return pd.DataFrame(
         {"ratio": rs_ratio, "momentum": rs_momentum}
@@ -297,19 +303,21 @@ def main() -> None:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "health": health,
         "benchmark": MARKET_BENCHMARK,
-        "method": "Calibrated public RRG approximation; not proprietary JdK indicators",
+        "method": "EdgeRater-calibrated normalized public RRG approximation; not proprietary JdK indicators",
         "price_basis": "raw close",
         "data_source": "Yahoo Finance via yfinance",
         "validation": {
             "reference_date": "2026-10-09",
             "sector_quadrants_matched": "11/11",
-            "industry_quadrants_matched": "14/16",
-            "note": "Calibrated against EdgeRater reference screenshots; exact JdK/EdgeRater formula remains proprietary."
+            "industry_quadrants_matched": "15/16",
+            "note": "Calibrated against user-provided EdgeRater daily reference screenshots. Exact EdgeRater/JdK formula and internal window defaults are undisclosed; use as a close public approximation, not an exact clone."
         },
         "params": {
-            "rs_short": RS_SHORT,
-            "rs_long": RS_LONG,
-            "momentum_ma": MOMENTUM_MA,
+            "smooth_wma": SMOOTH_WMA,
+            "normalize_window": NORMALIZE_WINDOW,
+            "momentum_roc": MOMENTUM_ROC,
+            "momentum_wma": MOMENTUM_WMA,
+            "normalize_scale": NORMALIZE_SCALE,
             "max_tail": TAIL_POINTS,
         },
         "universes": {

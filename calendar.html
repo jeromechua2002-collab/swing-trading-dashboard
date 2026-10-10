@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>October 2026 Trade P/L Calendar</title>
+<style>
+:root{--bg:#0f1115;--panel:#151922;--border:#252b36;--text:#eef2f7;--muted:#8f9baa;--green:#2fb171;--greenbg:rgba(47,177,113,.17);--red:#eb6262;--redbg:rgba(235,98,98,.17);--flat:#657080}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{padding:18px}.head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:20px;margin:0 0 4px}.sub{font-size:12px;color:var(--muted)}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--muted)}.dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px}.g{background:var(--green)}.r{background:var(--red)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--panel)}
+.dow{padding:9px;text-align:center;font-size:11px;color:var(--muted);font-weight:650;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.dow:nth-child(7){border-right:0}.day{min-height:112px;padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative}
+.day:nth-child(7n){border-right:0}.blank{background:#11141a}.num{font-size:12px;color:var(--muted);margin-bottom:6px}
+.win{background:var(--greenbg)}.loss{background:var(--redbg)}
+.total{font-size:13px;font-weight:750;margin:4px 0 5px}.total.pos{color:var(--green)}.total.neg{color:var(--red)}
+.trade{font-size:10px;padding:4px 6px;border-radius:6px;margin-top:4px;display:flex;justify-content:space-between;gap:5px;border:1px solid transparent}
+.trade.pos{background:rgba(47,177,113,.13);border-color:rgba(47,177,113,.28)}.trade.neg{background:rgba(235,98,98,.13);border-color:rgba(235,98,98,.28)}
+.footer{margin-top:9px;color:var(--muted);font-size:11px}
+@media(max-width:760px){.day{min-height:92px;padding:5px}.trade{font-size:9px}.total{font-size:11px}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="head"><div><h1>October 2026 — Trade P/L Calendar</h1><div class="sub">Daily result is shaded by net SGD P/L; individual trades retain their own win/loss color.</div></div>
+<div class="legend"><span><i class="dot g"></i>Profit day</span><span><i class="dot r"></i>Loss day</span></div></div>
+<div class="cal">
+<div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+<div class="day blank"></div><div class="day blank"></div><div class="day blank"></div>
+<div class="day"><div class="num">1</div></div>
+<div class="day win"><div class="num">2</div><div class="total pos">+S$47.82</div><div class="trade pos"><span>RAM</span><span>+18.22</span></div><div class="trade pos"><span>DAMD</span><span>+29.60</span></div></div>
+<div class="day"><div class="num">3</div></div><div class="day"><div class="num">4</div></div>
+<div class="day"><div class="num">5</div></div><div class="day"><div class="num">6</div></div>
+<div class="day win"><div class="num">7</div><div class="total pos">+S$288.35</div><div class="trade pos"><span>SOXS</span><span>+288.35</span></div></div>
+<div class="day loss"><div class="num">8</div><div class="total neg">−S$44.49</div><div class="trade neg"><span>SOXL</span><span>−99.25</span></div><div class="trade neg"><span>SOXS</span><span>−106.21</span></div><div class="trade pos"><span>MUZ</span><span>+160.97</span></div></div>
+<div class="day loss"><div class="num">9</div><div class="total neg">−S$86.52</div><div class="trade neg"><span>SOXL</span><span>−86.52</span></div></div>
+<div class="day"><div class="num">10</div></div><div class="day"><div class="num">11</div></div>
+<div class="day"><div class="num">12</div></div><div class="day"><div class="num">13</div></div><div class="day"><div class="num">14</div></div><div class="day"><div class="num">15</div></div><div class="day"><div class="num">16</div></div><div class="day"><div class="num">17</div></div><div class="day"><div class="num">18</div></div>
+<div class="day"><div class="num">19</div></div><div class="day"><div class="num">20</div></div><div class="day"><div class="num">21</div></div><div class="day"><div class="num">22</div></div><div class="day"><div class="num">23</div></div><div class="day"><div class="num">24</div></div><div class="day"><div class="num">25</div></div>
+<div class="day"><div class="num">26</div></div><div class="day"><div class="num">27</div></div><div class="day"><div class="num">28</div></div><div class="day"><div class="num">29</div></div><div class="day"><div class="num">30</div></div><div class="day"><div class="num">31</div></div><div class="day blank"></div>
+</div>
+<div class="footer">Calendar is generated from the journal’s closed-trade Net P/L SGD values. Oct 8 is red because the day total is −S$44.49 even though MUZ was profitable.</div>
+</div></body></html>

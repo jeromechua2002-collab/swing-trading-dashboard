@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Market Rotation Lab</title>
+<link rel="stylesheet" href="dashboard.css">
+<style>
+:root{--bg:#0b0e13;--panel:#121722;--border:#27313d;--text:#eef3f8;--muted:#8e99a8;--green:#39b77a;--red:#df6572;--blue:#5b9ee8;--amber:#dfb347}
+body{background:var(--bg);color:var(--text)}
+.lab{max-width:1500px;margin:0 auto;padding:14px 16px 28px}
+.labbar{position:sticky;top:0;z-index:20;background:rgba(11,14,19,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(10px)}
+.labbar-inner{max-width:1500px;margin:auto;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand strong{font-size:14px}.brand span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.tabs,.controls{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn,.sel{appearance:none;border:1px solid #303b49;background:#101620;color:#dce4ed;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer}
+.btn.active{background:rgba(57,183,122,.13);border-color:rgba(57,183,122,.42);color:#e4f8ec}
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:10px 0 12px}.hero h1{font-size:24px;margin:0 0 4px}.hero p{font-size:11px;color:var(--muted);max-width:850px;margin:0;line-height:1.5}
+.notice{font-size:10px;line-height:1.5;color:#9aa6b5;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:#0f141d}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.head{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}.head strong{font-size:12px}.head span{font-size:10px;color:var(--muted)}
+#xy{width:100%;height:650px;display:block}
+.side{display:flex;flex-direction:column;gap:10px}.sidecard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px}.sidecard h3{font-size:12px;margin:0 0 8px}
+.watch{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}.watch:last-child{border-bottom:0}.watch strong{font-size:11px}.muted{color:var(--muted)}.pos{color:var(--green)}.neg{color:var(--red)}.improve{color:var(--blue)}.fade{color:var(--amber)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px}.kpi .label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.kpi .value{font-size:15px;font-weight:700;margin-top:4px}
+.tooltip{position:absolute;display:none;pointer-events:none;z-index:5;background:#090d12;border:1px solid #364250;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.plotwrap{position:relative}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:7px}.legend div{font-size:9.5px;color:var(--muted);line-height:1.4}.legend b{display:block;font-size:10px;margin-bottom:2px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}#xy{height:560px}.labbar-inner{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header class="labbar"><div class="labbar-inner">
+  <div class="brand"><strong>Market Rotation Lab</strong><span>Experimental leaders / laggards workspace</span></div>
+  <div class="tabs">
+    <button class="btn active" data-mode="sectors">Sectors</button>
+    <button class="btn" data-mode="industries">Industries</button>
+  </div>
+</div></header>
+
+<main class="lab">
+<section class="hero">
+  <div><h1>Linear Rotation Map</h1><p>Inspired by the leaders/laggards concept, but built with transparent formulas. It is intentionally separate from the RRG and Swing Journal until we decide whether it adds real trading value.</p></div>
+  <div class="controls">
+    <select id="window" class="sel">
+      <option value="5">5D</option>
+      <option value="20" selected>20D</option>
+      <option value="60">60D</option>
+      <option value="mtd">MTD</option>
+      <option value="ytd">YTD</option>
+    </select>
+    <select id="mom" class="sel">
+      <option value="5" selected>5D momentum</option>
+      <option value="10">10D momentum</option>
+    </select>
+  </div>
+</section>
+
+<div class="notice"><strong>Experimental methodology:</strong> X = total return over the chosen window minus SPY return over the same window. Y = recent relative return minus the immediately preceding relative-return window of the same length. Positive Y therefore means relative performance is accelerating; negative Y means it is decelerating. This is <strong>not</strong> Andrew Rader's proprietary momentum metric and does not claim to measure dealer gamma.</div>
+
+<section class="kpis">
+  <div class="kpi"><div class="label">Universe</div><div class="value" id="kUniverse">—</div></div>
+  <div class="kpi"><div class="label">Strongest relative</div><div class="value" id="kLeader">—</div></div>
+  <div class="kpi"><div class="label">Weakest relative</div><div class="value" id="kLagger">—</div></div>
+  <div class="kpi"><div class="label">Fastest improving</div><div class="value" id="kImprove">—</div></div>
+</section>
+
+<div class="grid">
+  <section class="card">
+    <div class="head"><strong id="chartTitle">Sector Rotation · 20D</strong><span id="updated">Loading…</span></div>
+    <div class="plotwrap"><svg id="xy" viewBox="0 0 1000 650" preserveAspectRatio="none"></svg><div id="tip" class="tooltip"></div></div>
+  </section>
+  <aside class="side">
+    <div class="sidecard"><h3>Cycle Watch</h3><div id="cycleWatch"></div></div>
+    <div class="sidecard"><h3>Quadrant Interpretation</h3>
+      <div class="legend">
+        <div><b class="pos">Leaders</b>Outperforming SPY and still accelerating.</div>
+        <div><b class="fade">Fading Leaders</b>Still outperforming, but momentum is rolling over.</div>
+        <div><b class="improve">Improving Laggards</b>Still behind SPY, but relative momentum is turning up.</div>
+        <div><b class="neg">Weak Laggards</b>Underperforming and still losing relative momentum.</div>
+      </div>
+    </div>
+    <div class="sidecard"><h3>Heuristic Playbook</h3>
+      <div class="muted" style="font-size:10px;line-height:1.5">
+        <strong>Phase 1 watch:</strong> stretched positive X with negative Y — leaders beginning to fade.<br><br>
+        <strong>Phase 2 watch:</strong> strongly negative X and negative Y — laggards still capitulating.<br><br>
+        <strong>Rotation reversal:</strong> negative X but strongly positive Y — lag-to-lead candidates worth deeper review.<br><br>
+        These are screening heuristics, not automatic trade signals.
+      </div>
+    </div>
+  </aside>
+</div>
+</main>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("xy"),tip=document.getElementById("tip");
+let payload=null,mode="sectors";
+const sectorGroups={
+  "Growth":["XLK","XLY","XLC"],"Defensive":["XLU","XLRE","XLP"],
+  "Value":["XLI","XLB","XLF"],"Wild Cards":["XLV","XLE"]
+};
+const industryGroups={
+  "Technology / Internet":["SMH","IGV","FDN"],
+  "Energy / Materials":["XOP","OIH","XME","TAN","PBW"],
+  "Financial / Real Estate":["KRE","KIE","VNQ"],
+  "Consumer / Industrials":["XRT","ITB","ITA","JETS"],
+  "Health":["IBB"]
+};
+const colors=["#5ba6ff","#ff6f91","#6cd29a","#f1b84b","#aa8cff","#55cbd8","#ff8b5f","#8bc65a","#dd76d7","#7c9cf5","#d0b84f","#59b7aa","#e67878","#8d9ce8","#c88d60","#69c580"];
+function E(tag,attrs,text){const n=document.createElementNS(NS,tag);Object.entries(attrs||{}).forEach(([k,v])=>n.setAttribute(k,v));if(text)n.textContent=text;return n}
+function groups(){return mode==="sectors"?sectorGroups:industryGroups}
+function tickers(){return Object.values(groups()).flat()}
+function priceSeries(t){return (payload.prices[t]||[]).map(r=>({d:new Date(r.time),c:+r.close})).sort((a,b)=>a.d-b.d)}
+function nearestStartIndex(arr,kind){
+  if(!arr.length)return 0;
+  const end=arr[arr.length-1].d;
+  if(Number.isFinite(+kind))return Math.max(0,arr.length-1-(+kind));
+  let target;
+  if(kind==="mtd")target=new Date(end.getFullYear(),end.getMonth(),1);
+  else target=new Date(end.getFullYear(),0,1);
+  let i=0;while(i<arr.length-1&&arr[i].d<target)i++;return Math.max(0,i-1);
+}
+function totalReturn(arr,start,endIdx){if(!arr.length||start>=endIdx)return 0;return (arr[endIdx].c/arr[start].c-1)*100}
+function relativeMetrics(t,window,momN){
+  const a=priceSeries(t),b=priceSeries("SPY");
+  const mapB=new Map(b.map(x=>[x.d.toISOString().slice(0,10),x.c]));
+  const aligned=a.filter(x=>mapB.has(x.d.toISOString().slice(0,10))).map(x=>({d:x.d,a:x.c,b:mapB.get(x.d.toISOString().slice(0,10))}));
+  const end=aligned.length-1;if(end<Math.max(12,momN*2+2))return null;
+  let start;
+  if(Number.isFinite(+window))start=Math.max(0,end-(+window));
+  else{
+    const dates=aligned.map(x=>({d:x.d,c:x.a}));
+    start=nearestStartIndex(dates,window);
+  }
+  const assetRet=(aligned[end].a/aligned[start].a-1)*100;
+  const spyRet=(aligned[end].b/aligned[start].b-1)*100;
+  const x=assetRet-spyRet;
+  const r1s=Math.max(0,end-momN),r0s=Math.max(0,end-momN*2);
+  const recent=((aligned[end].a/aligned[r1s].a-1)-(aligned[end].b/aligned[r1s].b-1))*100;
+  const prior=((aligned[r1s].a/aligned[r0s].a-1)-(aligned[r1s].b/aligned[r0s].b-1))*100;
+  const y=recent-prior;
+  return{x,y,assetRet,spyRet,date:aligned[end].d};
+}
+function classify(p){if(p.x>=0&&p.y>=0)return"Leader";if(p.x>=0&&p.y<0)return"Fading Leader";if(p.x<0&&p.y>=0)return"Improving Laggard";return"Weak Laggard"}
+function render(){
+  if(!payload)return;
+  const win=document.getElementById("window").value,momN=+document.getElementById("mom").value;
+  const data=tickers().map((t,i)=>({t,i,m:relativeMetrics(t,win,momN)})).filter(x=>x.m);
+  const W=1000,H=650,L=70,R=24,T=28,B=54,iw=W-L-R,ih=H-T-B;
+  let maxX=Math.max(1,...data.map(d=>Math.abs(d.m.x))),maxY=Math.max(1,...data.map(d=>Math.abs(d.m.y)));
+  maxX*=1.18;maxY*=1.2;
+  const X=x=>L+(x+maxX)/(2*maxX)*iw,Y=y=>T+(maxY-y)/(2*maxY)*ih;
+  const x0=X(0),y0=Y(0);svg.innerHTML="";
+  svg.appendChild(E("rect",{x:L,y:T,width:x0-L,height:y0-T,fill:"rgba(74,140,220,.09)"}));
+  svg.appendChild(E("rect",{x:x0,y:T,width:W-R-x0,height:y0-T,fill:"rgba(57,183,122,.09)"}));
+  svg.appendChild(E("rect",{x:L,y:y0,width:x0-L,height:H-B-y0,fill:"rgba(223,101,114,.085)"}));
+  svg.appendChild(E("rect",{x:x0,y:y0,width:W-R-x0,height:H-B-y0,fill:"rgba(223,179,71,.085)"}));
+  for(let i=0;i<=8;i++){let x=L+iw*i/8,y=T+ih*i/8;svg.appendChild(E("line",{x1:x,y1:T,x2:x,y2:H-B,stroke:"#26303c","stroke-width":"1"}));svg.appendChild(E("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#26303c","stroke-width":"1"}))}
+  svg.appendChild(E("line",{x1:x0,y1:T,x2:x0,y2:H-B,stroke:"#929dab","stroke-width":"1.5"}));
+  svg.appendChild(E("line",{x1:L,y1:y0,x2:W-R,y2:y0,stroke:"#929dab","stroke-width":"1.5"}));
+  [["IMPROVING LAGGARDS",L+14,T+20,"#5b9ee8"],["LEADERS",W-R-70,T+20,"#39b77a"],["WEAK LAGGARDS",L+14,H-B-12,"#df6572"],["FADING LEADERS",W-R-125,H-B-12,"#dfb347"]].forEach(a=>svg.appendChild(E("text",{x:a[1],y:a[2],fill:a[3],"font-size":"11","font-weight":"700","letter-spacing":"1"},a[0])));
+  svg.appendChild(E("text",{x:L+iw/2,y:H-12,fill:"#8d99a8","font-size":"11","text-anchor":"middle"},"Relative return vs SPY (%) →"));
+  svg.appendChild(E("text",{x:17,y:T+ih/2,fill:"#8d99a8","font-size":"11","text-anchor":"middle",transform:"rotate(-90 17 "+(T+ih/2)+")"},"Relative momentum acceleration →"));
+  data.forEach(d=>{
+    const c=colors[d.i%colors.length],cx=X(d.m.x),cy=Y(d.m.y);
+    svg.appendChild(E("circle",{cx,cy,r:10.5,fill:c,stroke:"#f2f6f9","stroke-width":"2.5"}));
+    svg.appendChild(E("text",{x:cx+13,y:cy-11,fill:"#f2f6f9","font-size":"12","font-weight":"700","paint-order":"stroke",stroke:"#0a0d12","stroke-width":"4"},d.t));
+    const hit=E("circle",{cx,cy,r:22,fill:"transparent"});svg.appendChild(hit);
+    hit.addEventListener("mousemove",e=>{tip.style.display="block";tip.innerHTML="<strong>"+d.t+"</strong><br>"+classify(d.m)+"<br>Relative return "+d.m.x.toFixed(2)+"%<br>Momentum accel "+d.m.y.toFixed(2)+"%<br>Asset return "+d.m.assetRet.toFixed(2)+"% · SPY "+d.m.spyRet.toFixed(2)+"%";const r=svg.getBoundingClientRect();tip.style.left=(e.clientX-r.left+12)+"px";tip.style.top=(e.clientY-r.top+12)+"px"});
+    hit.addEventListener("mouseleave",()=>tip.style.display="none");
+  });
+  for(let i=0;i<=4;i++){const xv=-maxX+2*maxX*i/4,yv=-maxY+2*maxY*i/4;svg.appendChild(E("text",{x:X(xv),y:H-B+18,fill:"#798594","font-size":"9.5","text-anchor":"middle"},xv.toFixed(1)));svg.appendChild(E("text",{x:L-8,y:Y(yv)+3,fill:"#798594","font-size":"9.5","text-anchor":"end"},yv.toFixed(1)))}
+  updateCards(data,win);
+}
+function updateCards(data,win){
+  const byX=[...data].sort((a,b)=>b.m.x-a.m.x),byY=[...data].sort((a,b)=>b.m.y-a.m.y);
+  document.getElementById("kUniverse").textContent=data.length+" "+(mode==="sectors"?"sectors":"industries");
+  document.getElementById("kLeader").textContent=byX[0]?.t||"—";
+  document.getElementById("kLagger").textContent=byX.at(-1)?.t||"—";
+  document.getElementById("kImprove").textContent=byY[0]?.t||"—";
+  document.getElementById("chartTitle").textContent=(mode==="sectors"?"Sector":"Industry")+" Rotation · "+(Number.isFinite(+win)?win+"D":win.toUpperCase());
+  const stretched=[...data].filter(d=>d.m.x>0&&d.m.y<0).sort((a,b)=>b.m.x-a.m.x).slice(0,4);
+  const laggers=[...data].filter(d=>d.m.x<0&&d.m.y<0).sort((a,b)=>a.m.x-b.m.x).slice(0,4);
+  const reversals=[...data].filter(d=>d.m.x<0&&d.m.y>0).sort((a,b)=>b.m.y-a.m.y).slice(0,4);
+  const box=document.getElementById("cycleWatch");box.innerHTML="";
+  function section(title,arr,cls){const h=document.createElement("div");h.className="group-title";h.style.cssText="font-size:9px;color:#7f8b99;text-transform:uppercase;letter-spacing:.08em;margin:8px 0 3px";h.textContent=title;box.appendChild(h);if(!arr.length){const z=document.createElement("div");z.className="muted";z.style.fontSize="10px";z.textContent="No candidates";box.appendChild(z)}arr.forEach(d=>{const row=document.createElement("div");row.className="watch";row.innerHTML='<strong>'+d.t+'</strong><span class="'+cls+'">'+d.m.x.toFixed(1)+' / '+d.m.y.toFixed(1)+'</span>';box.appendChild(row)})}
+  section("Phase 1 · Fading leaders",stretched,"fade");
+  section("Phase 2 · Weak laggards",laggers,"neg");
+  section("Lag → Lead reversals",reversals,"improve");
+  const latest=data[0]?.m.date;document.getElementById("updated").textContent=latest?"Prices through "+latest.toLocaleDateString():"No data";
+}
+document.querySelectorAll("[data-mode]").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("active",x===b));render()}));
+document.getElementById("window").addEventListener("change",render);
+document.getElementById("mom").addEventListener("change",render);
+fetch("data/rrg-audit.json?"+Date.now()).then(r=>{if(!r.ok)throw new Error("price data unavailable");return r.json()}).then(d=>{payload=d;render()}).catch(e=>{document.getElementById("updated").textContent="Data unavailable";console.error(e)});
+</script>
+</body>
+</html>

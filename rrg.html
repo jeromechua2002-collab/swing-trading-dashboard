@@ -38,6 +38,20 @@ body{overflow-x:hidden}
 .symbol-row:last-child{border-bottom:0}.symbol-row input{accent-color:#41b883}.symbol-row:hover .ticker{color:white}.ticker{font-weight:650}.quad{font-size:9.5px}.leading{color:#55ca8f}.weakening{color:#e1b84d}.lagging{color:#e66d78}.improving{color:#73aaff}
 .legend-copy{font-size:10px;line-height:1.5;color:var(--muted)}.legend-copy strong{color:#e1e8ef}
 .notice{font-size:9.5px;line-height:1.45;color:#7f8b99}
+.signal-chip{display:inline-flex;align-items:center;gap:5px;font-size:9px;padding:3px 6px;border-radius:999px;border:1px solid #33404f;margin-left:5px}
+.signal-chip.strong{border-color:#3f8b67;color:#70d69d;background:rgba(63,139,103,.12)}
+.signal-chip.developing{border-color:#967a34;color:#e2bd5b;background:rgba(150,122,52,.10)}
+.signal-chip.weak{border-color:#525d69;color:#96a2af;background:rgba(82,93,105,.10)}
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.analytics-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+.analytics-card h3{font-size:12px;margin:0 0 8px}
+.buddy-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.buddy{border:1px solid #283342;border-radius:9px;padding:8px;background:#0f141d}
+.buddy .name{font-size:10px;font-weight:700}.buddy .meta{font-size:9px;color:#8f9baa;line-height:1.45;margin-top:3px}
+.rank-row{display:grid;grid-template-columns:52px 1fr 58px;gap:8px;align-items:center;margin:6px 0;font-size:10px}
+.rank-track{height:7px;border-radius:999px;background:#202936;overflow:hidden}.rank-fill{height:100%;border-radius:999px}
+.rank-fill.long{background:#3bb273}.rank-fill.short{background:#dc5e69}.rank-score{text-align:right;color:#98a5b4}
+@media(max-width:900px){.analytics-grid{grid-template-columns:1fr}.buddy-grid{grid-template-columns:1fr 1fr}}
 .tooltip{position:absolute;pointer-events:none;display:none;z-index:5;background:#080b10;border:1px solid #3a4554;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.45;box-shadow:0 8px 26px rgba(0,0,0,.4)}
 .stock-hint{font-size:10px;color:#9faaba;margin-top:5px}
 .backline{display:none;margin-bottom:8px}.backline.show{display:block}.backline a{font-size:11px;color:#bed6c8}
@@ -67,7 +81,9 @@ body{overflow-x:hidden}
   <div class="controls">
     <select id="sectorSelect" class="ctrl-select" style="display:none"></select>
     <select id="benchmarkSelect" class="ctrl-select"></select>
+    <button class="ctrl" data-tf="1W">1W</button>
     <button class="ctrl active" data-tf="1D">1D</button>
+    <button class="ctrl" data-tf="4H">4H</button>
     <button class="ctrl" data-tf="1H">1H</button>
     <select id="trail" class="ctrl-select">
       <option value="3">3 bars</option>
@@ -122,6 +138,19 @@ body{overflow-x:hidden}
     </div>
   </aside>
 </div>
+
+<section class="analytics-grid" id="sectorAnalytics">
+  <div class="analytics-card">
+    <h3>Buddy Confirmation</h3>
+    <div class="notice" style="margin-bottom:8px">Measures whether sectors inside each bundle are rotating in the same direction. Wild Cards are matched to whichever major bundle they most closely resemble.</div>
+    <div id="buddyBoard" class="buddy-grid"></div>
+  </div>
+  <div class="analytics-card">
+    <h3>Rotation Cycle / Leadership Board</h3>
+    <div class="notice" style="margin-bottom:8px">Ranks the clearest long-side and short-side sector rotations. This is a relative-leadership tool, not a claim about dealer or market-maker positioning.</div>
+    <div id="leadershipBoard"></div>
+  </div>
+</section>
 </main>
 
 <script>
@@ -145,6 +174,35 @@ const BGS={Leading:"rgba(59,178,115,.11)",Weakening:"rgba(215,169,40,.11)",Laggi
 function E(tag,attrs,text){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{})) n.setAttribute(k,v);if(text)n.textContent=text;return n}
 function quadrant(x,y){if(x>=100&&y>=100)return"Leading";if(x>=100&&y<100)return"Weakening";if(x<100&&y<100)return"Lagging";return"Improving"}
 function slugQuad(q){return q.toLowerCase()}
+function signalMetrics(arr){
+  if(!arr||arr.length<3)return{distance:0,speed:0,straightness:0,clarity:"weak",dx:0,dy:0,angle:0,score:0};
+  const use=arr.slice(-Math.min(6,arr.length));
+  const head=use[use.length-1],prev=use[use.length-2];
+  const dx=head.ratio-prev.ratio,dy=head.momentum-prev.momentum;
+  let path=0;
+  for(let i=1;i<use.length;i++)path+=Math.hypot(use[i].ratio-use[i-1].ratio,use[i].momentum-use[i-1].momentum);
+  const net=Math.hypot(head.ratio-use[0].ratio,head.momentum-use[0].momentum);
+  const straightness=path?net/path:0;
+  const distance=Math.hypot(head.ratio-100,head.momentum-100);
+  const speed=Math.hypot(dx,dy);
+  let angle=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
+  let clarity="weak";
+  if(distance>=1.25&&straightness>=0.68)clarity="strong";
+  else if(distance>=0.70&&straightness>=0.50)clarity="developing";
+  const score=distance*(0.45+0.55*straightness)*(0.7+Math.min(speed,1.5)/1.5*.3);
+  return{distance,speed,straightness,clarity,dx,dy,angle,score};
+}
+function directionLabel(m){
+  if(m.dx>0&&m.dy>0)return"NE";
+  if(m.dx>0&&m.dy<0)return"SE";
+  if(m.dx<0&&m.dy>0)return"NW";
+  if(m.dx<0&&m.dy<0)return"SW";
+  return"Flat";
+}
+function cosine(a,b){
+  const ma=Math.hypot(a.dx,a.dy),mb=Math.hypot(b.dx,b.dy);if(!ma||!mb)return 0;
+  return(a.dx*b.dx+a.dy*b.dy)/(ma*mb);
+}
 function allSectorTickers(){return Object.values(payload.universes.sectors).flat()}
 function allIndustryTickers(){return Object.values(payload.universes.industries).flat()}
 function stockTickers(){return (stockPayload&&stockPayload.members)||[]}
@@ -234,7 +292,10 @@ function buildSymbolList(){
       checkbox.addEventListener("change",e=>{e.target.checked?selected.add(t):selected.delete(t);renderPlot()});
       const tickerLabel=document.createElement("span");tickerLabel.className="ticker";tickerLabel.textContent=t;
       tickerLabel.addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
-      const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);quadLabel.textContent=q;
+      const m=signalMetrics(db[t]);
+      const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);quadLabel.textContent=q+" · "+directionLabel(m);
+      const sig=document.createElement("span");sig.className="signal-chip "+m.clarity;sig.textContent=m.clarity==="strong"?"Strong":m.clarity==="developing"?"Developing":"Weak";
+      tickerLabel.appendChild(sig);
       row.appendChild(checkbox);row.appendChild(tickerLabel);row.appendChild(quadLabel);
       wrap.appendChild(row);
     });
@@ -293,22 +354,25 @@ function renderPlot(){
   tickers.forEach(t=>{
     const arr=db[t].slice(-trail);if(arr.length<2)return;
     const head=arr[arr.length-1],q=quadrant(head.ratio,head.momentum),c=COLORS[q];
-    const dist=Math.hypot(head.ratio-100,head.momentum-100);
-    const width=Math.min(4.2,1.7+dist*.42);
+    const sm=signalMetrics(arr);
+    const dist=sm.distance;
+    const width=sm.clarity==="strong"?Math.min(4.8,2.5+dist*.45):sm.clarity==="developing"?Math.min(3.4,1.9+dist*.32):1.35;
+    const dash=sm.clarity==="weak"?"5 5":"";
     for(let i=1;i<arr.length;i++){
       const a=arr[i-1],b=arr[i],opacity=.16+.74*(i/(arr.length-1));
-      svg.appendChild(E("line",{x1:X(a.ratio),y1:Y(a.momentum),x2:X(b.ratio),y2:Y(b.momentum),stroke:c,"stroke-width":width,"stroke-linecap":"round",opacity:opacity}));
+      svg.appendChild(E("line",{x1:X(a.ratio),y1:Y(a.momentum),x2:X(b.ratio),y2:Y(b.momentum),stroke:c,"stroke-width":width,"stroke-linecap":"round","stroke-dasharray":dash,opacity:sm.clarity==="weak"?Math.min(opacity,.46):opacity}));
     }
     arr.slice(0,-1).forEach((p,i)=>svg.appendChild(E("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.8,fill:c,opacity:.18+.58*(i/Math.max(1,arr.length-2))})));
     const cx=X(head.ratio),cy=Y(head.momentum);
-    svg.appendChild(E("circle",{cx,cy,r:11.5,fill:c,stroke:"#f4f7fa","stroke-width":"2.7"}));
+    const headR=sm.clarity==="strong"?13.5:sm.clarity==="developing"?11.5:9.5;
+    svg.appendChild(E("circle",{cx,cy,r:headR,fill:c,stroke:"#f4f7fa","stroke-width":sm.clarity==="strong"?"3.2":"2.4"}));
     svg.appendChild(E("circle",{cx,cy,r:5.2,fill:"#10151d",opacity:".24"}));
     svg.appendChild(E("text",{x:cx+14,y:cy-12,fill:"#f3f6f9","font-size":"12","font-weight":"750","paint-order":"stroke",stroke:"#0a0d12","stroke-width":"4"},t));
     const hit=E("circle",{cx,cy,r:22,fill:"transparent"});svg.appendChild(hit);
     hit.style.cursor=mode==="sectors"?"pointer":"default";
     hit.addEventListener("mousemove",e=>{
       tip.style.display="block";
-      tip.innerHTML="<strong>"+t+"</strong><br>"+q+"<br>RS-Ratio "+head.ratio.toFixed(2)+"<br>RS-Momentum "+head.momentum.toFixed(2)+"<br>"+tf+" · "+arr.length+" bars"+(mode==="sectors"?"<br><span style='color:#9fb0c2'>Click to open "+t+" stocks</span>":"");
+      tip.innerHTML="<strong>"+t+"</strong><br>"+q+"<br>RS-Ratio "+head.ratio.toFixed(2)+"<br>RS-Momentum "+head.momentum.toFixed(2)+"<br>"+tf+" · "+arr.length+" bars<br>"+(sm.clarity==="strong"?"Strong / clear":sm.clarity==="developing"?"Developing":"Weak / unclear")+" · distance "+sm.distance.toFixed(2)+" · straightness "+Math.round(sm.straightness*100)+"%"+(mode==="sectors"?"<br><span style='color:#9fb0c2'>Click to open "+t+" stocks</span>":"");
       const r=svg.getBoundingClientRect();tip.style.left=(e.clientX-r.left+12)+"px";tip.style.top=(e.clientY-r.top+12)+"px";
     });
     hit.addEventListener("mouseleave",()=>tip.style.display="none");
@@ -321,8 +385,56 @@ function renderPlot(){
     svg.appendChild(E("text",{x:L-8,y:Y(yv)+3,fill:"#74808e","font-size":"9.5","text-anchor":"end"},yv.toFixed(1)));
   }
 }
+function renderSectorAnalytics(){
+  const wrap=document.getElementById("sectorAnalytics");
+  if(mode!=="sectors"){wrap.style.display="none";return}
+  wrap.style.display="";
+  const db=dataBlock();
+  const metrics={};
+  Object.keys(db).forEach(t=>metrics[t]=signalMetrics(db[t]));
+  const board=document.getElementById("buddyBoard");board.innerHTML="";
+  const primary=["Growth","Defensive","Value"];
+  const vectors={};
+  primary.forEach(group=>{
+    const members=(payload.universes.sectors[group]||[]).filter(t=>metrics[t]);
+    let dx=0,dy=0;
+    members.forEach(t=>{dx+=metrics[t].dx;dy+=metrics[t].dy});
+    vectors[group]={dx:members.length?dx/members.length:0,dy:members.length?dy/members.length:0};
+    let pairs=[],dirs={};
+    members.forEach(t=>{const d=directionLabel(metrics[t]);dirs[d]=(dirs[d]||0)+1});
+    for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++)pairs.push(cosine(metrics[members[i]],metrics[members[j]]));
+    const coherence=pairs.length?Math.round(((pairs.reduce((a,b)=>a+b,0)/pairs.length)+1)/2*100):0;
+    const dominant=Object.entries(dirs).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+    const div=document.createElement("div");div.className="buddy";
+    div.innerHTML='<div class="name">'+group+'</div><div class="meta">'+dominant[1]+'/'+members.length+' moving '+dominant[0]+'<br>Buddy coherence: '+coherence+'%</div>';
+    board.appendChild(div);
+  });
+  const wild=(payload.universes.sectors["Wild Cards"]||[]).filter(t=>metrics[t]);
+  wild.forEach(t=>{
+    const sims=primary.map(g=>[g,cosine(metrics[t],vectors[g])]).sort((a,b)=>b[1]-a[1]);
+    const best=sims[0]||["—",0];
+    const div=document.createElement("div");div.className="buddy";
+    div.innerHTML='<div class="name">'+t+' · Wild Card</div><div class="meta">Moving '+directionLabel(metrics[t])+'<br>Closest buddy: '+best[0]+' ('+Math.round(best[1]*100)+'%)</div>';
+    board.appendChild(div);
+  });
+
+  const longs=[],shorts=[];
+  Object.keys(db).forEach(t=>{
+    const m=metrics[t],q=quadrant(latest(t).ratio,latest(t).momentum);
+    if(m.dx>0&&m.dy>0&&(q==="Improving"||q==="Leading"))longs.push([t,m.score,m.clarity,q]);
+    if(m.dx<0&&m.dy<0&&(q==="Weakening"||q==="Lagging"))shorts.push([t,m.score,m.clarity,q]);
+  });
+  longs.sort((a,b)=>b[1]-a[1]);shorts.sort((a,b)=>b[1]-a[1]);
+  const max=Math.max(1,...longs.map(x=>x[1]),...shorts.map(x=>x[1]));
+  const lb=document.getElementById("leadershipBoard");lb.innerHTML='<div class="group-title">LONG-SIDE ROTATION</div>';
+  if(!longs.length)lb.innerHTML+='<div class="notice">No clean long-side sector rotation on this timeframe.</div>';
+  longs.slice(0,5).forEach(x=>lb.innerHTML+='<div class="rank-row"><strong>'+x[0]+'</strong><div class="rank-track"><div class="rank-fill long" style="width:'+Math.max(5,x[1]/max*100)+'%"></div></div><div class="rank-score">'+x[3]+' · '+x[2]+'</div></div>');
+  lb.innerHTML+='<div class="group-title" style="margin-top:12px">SHORT-SIDE ROTATION</div>';
+  if(!shorts.length)lb.innerHTML+='<div class="notice">No clean short-side sector rotation on this timeframe.</div>';
+  shorts.slice(0,5).forEach(x=>lb.innerHTML+='<div class="rank-row"><strong>'+x[0]+'</strong><div class="rank-track"><div class="rank-fill short" style="width:'+Math.max(5,x[1]/max*100)+'%"></div></div><div class="rank-score">'+x[3]+' · '+x[2]+'</div></div>');
+}
 function fullRender(){
-  setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();
+  setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();
   document.getElementById("updated").textContent="Data "+new Date(payload.generated_at).toLocaleString();
 }
 document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=>{

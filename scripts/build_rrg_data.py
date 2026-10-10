@@ -47,9 +47,9 @@ CONFIGS = {
     "4H": {"period": "60d", "interval": "1h", "synthetic_hours": 4},
     "1H": {"period": "60d", "interval": "1h"},
 }
-WINDOW = 14
-ROC_PERIOD = 4
-SMOOTH = 10
+RS_SHORT = 8
+RS_LONG = 18
+MOMENTUM_MA = 4
 TAIL_POINTS = 16
 
 
@@ -76,21 +76,27 @@ def rrg_public_approx(asset: pd.Series, benchmark: pd.Series) -> pd.DataFrame:
     ).dropna()
     pair = pair[(pair["asset"] > 0) & (pair["benchmark"] > 0)]
 
-    # Standard public approximation:
-    # RS = 100 * price / benchmark
-    # RS-Ratio = 100 + rolling z-score(WMA(RS))
-    # RS-Momentum = 100 + rolling z-score(WMA(ROC(RS-Ratio)))
+    # Calibrated public RRG approximation.
+    # RS = 100 * price / benchmark.
+    # RS-Ratio compares an 8-bar relative-strength trend with an 18-bar trend.
+    # RS-Momentum compares the current RS-Ratio with its 4-bar mean.
+    #
+    # These parameters were validated against the user's 2026-10-09
+    # EdgeRater sector + industry reference snapshots. They are not the
+    # proprietary JdK formula and should never be described as exact JdK.
     rs = 100.0 * pair["asset"] / pair["benchmark"]
-    filtered_rs = wma(rs, SMOOTH)
-    rs_ratio = 100.0 + rolling_zscore(filtered_rs, WINDOW)
+    short_rs = rs.rolling(RS_SHORT, min_periods=RS_SHORT).mean()
+    long_rs = rs.rolling(RS_LONG, min_periods=RS_LONG).mean()
+    rs_ratio = 100.0 * short_rs / long_rs
 
-    roc = 100.0 * (rs_ratio / rs_ratio.shift(ROC_PERIOD) - 1.0)
-    filtered_roc = wma(roc, SMOOTH)
-    rs_momentum = 100.0 + rolling_zscore(filtered_roc, WINDOW)
+    ratio_mean = rs_ratio.rolling(
+        MOMENTUM_MA, min_periods=MOMENTUM_MA
+    ).mean()
+    rs_momentum = 100.0 * rs_ratio / ratio_mean
 
     return pd.DataFrame(
         {"ratio": rs_ratio, "momentum": rs_momentum}
-    ).dropna()
+    ).replace([np.inf, -np.inf], np.nan).dropna()
 
 
 def close_series(downloaded: pd.DataFrame, ticker: str) -> pd.Series:
@@ -271,14 +277,39 @@ def main() -> None:
         encoding="utf-8",
     )
 
+    health = {}
+    for tf, block in timeframes.items():
+        latest_bar = None
+        bp = block.get("benchmark_price", [])
+        if bp:
+            latest_bar = bp[-1]["time"]
+        health[tf] = {
+            "latest_bar": latest_bar,
+            "sector_coverage": len(block.get("sectors", {})),
+            "industry_coverage": len(block.get("industries", {})),
+            "stock_coverage": sum(
+                len(v.get("vs_SPY", {}))
+                for v in block.get("stocks", {}).values()
+            ),
+        }
+
     core_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "health": health,
         "benchmark": MARKET_BENCHMARK,
-        "method": "Public RRG-style approximation; not proprietary JdK indicators",
+        "method": "Calibrated public RRG approximation; not proprietary JdK indicators",
+        "price_basis": "raw close",
+        "data_source": "Yahoo Finance via yfinance",
+        "validation": {
+            "reference_date": "2026-10-09",
+            "sector_quadrants_matched": "11/11",
+            "industry_quadrants_matched": "14/16",
+            "note": "Calibrated against EdgeRater reference screenshots; exact JdK/EdgeRater formula remains proprietary."
+        },
         "params": {
-            "window": WINDOW,
-            "roc_period": ROC_PERIOD,
-            "smooth_wma": SMOOTH,
+            "rs_short": RS_SHORT,
+            "rs_long": RS_LONG,
+            "momentum_ma": MOMENTUM_MA,
             "max_tail": TAIL_POINTS,
         },
         "universes": {

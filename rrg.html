@@ -172,6 +172,7 @@ let viewportMode="focus";
 let benchmark="SPY";
 let payload=null;
 let stockPayload=null;
+let validationReport=null;
 const selected=new Set();
 const svg=document.getElementById("rrg");
 const benchSvg=document.getElementById("benchmarkChart");
@@ -534,6 +535,10 @@ function renderHealth(){
     const when=h.latest_bar?new Date(h.latest_bar).toLocaleString():"—";
     return k+": "+when;
   }).join("<br>");
+  const liveVal=validationReport&&validationReport.candidates?validationReport.candidates.find(x=>x.name===validationReport.live_formula):null;
+  const valText=liveVal
+    ? "<br><br><strong>Regression benchmark</strong><br>"+liveVal.quadrant_matches+"/"+liveVal.quadrant_total+" quadrants · coordinate MAE "+Number(liveVal.approx_coordinate_mae).toFixed(3)+" · exact-tooltip MAE "+Number(liveVal.exact_tooltip_mae).toFixed(3)
+    : "";
   box.innerHTML="<strong>"+status+"</strong><br>"+
     "Source: Yahoo Finance / yfinance<br>"+
     "Price basis: raw close<br>"+
@@ -543,7 +548,7 @@ function renderHealth(){
       (active.industry_coverage||0)+"/"+expectedIndustries+" industries · "+
       (active.stock_coverage||0)+" stocks<br><br>"+
     "<strong>Latest benchmark bars</strong><br>"+barRows+
-    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants.";
+    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants."+valText;
 }
 function fullRender(){
   setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();
@@ -575,9 +580,14 @@ async function loadStockSector(sector){
   stockPayload=await r.json();
 }
 async function boot(){
-  const r=await fetch("data/rrg-core.json?"+Date.now());
+  const stamp=Date.now();
+  const [r,v]=await Promise.all([
+    fetch("data/rrg-core.json?"+stamp),
+    fetch("data/rrg-validation.json?"+stamp)
+  ]);
   if(!r.ok) throw new Error("RRG core data unavailable");
   payload=await r.json();
+  if(v.ok) validationReport=await v.json();
   if(mode==="stocks"){
     const valid=(payload.universes.stock_sectors||[]);
     if(!valid.includes(stockSector)) stockSector="XLK";

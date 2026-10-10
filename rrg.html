@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Rotation Radar</title>
+<link rel="stylesheet" href="dashboard.css">
+<style>
+.rrg-shell{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
+.rrg-panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn,.select{appearance:none;background:#0f141d;color:#dce4ed;border:1px solid #2a3442;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer}
+.btn.active{background:rgba(47,170,117,.14);border-color:rgba(47,170,117,.42);color:#ddf7e9}
+.rrg-wrap{position:relative;min-height:620px}
+#rrg{display:block;width:100%;height:620px}
+.side{display:flex;flex-direction:column;gap:12px}
+.side-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px}
+.side-card h3{font-size:12px;margin:0 0 8px}
+.group{margin-top:10px}.group:first-child{margin-top:0}.group-name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.symrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.symrow:last-child{border-bottom:0}.symleft{display:flex;align-items:center;gap:7px}.symleft input{accent-color:#35b77c}
+.quad{font-size:10px;color:var(--muted)}.quad.leading{color:#54c98f}.quad.weakening{color:#e4bd5a}.quad.lagging{color:#e66b78}.quad.improving{color:#6ea7ff}
+.status{font-size:10px;color:var(--muted);line-height:1.45}.status strong{color:#e6edf5}
+.tooltip{position:absolute;pointer-events:none;display:none;background:#0b0f15;border:1px solid #344050;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:5}
+@media(max-width:1000px){.rrg-shell{grid-template-columns:1fr}.rrg-wrap,#rrg{min-height:520px;height:520px}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><div class="brand"><strong>Trading Desk</strong><span>Rotation Radar</span></div><nav class="nav"><a href="index.html">Overview</a><a href="sectors.html">Sectors</a><a href="industries.html">Industries</a><a href="rates.html">Rates</a></nav></div></header>
+<main class="wrap shell">
+<section class="hero"><div><h1 id="pageTitle">Rotation Radar</h1><p id="pageSub">Relative rotation versus SPY. StockCharts-style layout, using our own RRG-style approximation rather than proprietary JdK values.</p></div><div class="toolbar"><button class="btn active" data-tf="1D">1D</button><button class="btn" data-tf="1H">1H</button><select id="trail" class="select"><option value="5">5-bar tail</option><option value="10" selected>10-bar tail</option><option value="15">15-bar tail</option></select><button id="allBtn" class="btn">Show all</button></div></section>
+<div class="rrg-shell">
+<section class="rrg-panel">
+<div class="panel-head"><div><div class="panel-title" id="chartTitle">RRG</div><div class="panel-note">Benchmark: SPY · centre = 100 / 100</div></div><div class="panel-note" id="updated">Loading…</div></div>
+<div class="rrg-wrap"><svg id="rrg" viewBox="0 0 1000 620" preserveAspectRatio="none"></svg><div class="tooltip" id="tip"></div></div>
+</section>
+<aside class="side">
+<div class="side-card"><h3>Symbols</h3><div id="symbols"></div></div>
+<div class="side-card"><h3>How to read it</h3><div class="status"><strong>Leading ↗</strong> = strong relative trend + momentum.<br><strong>Weakening ↘</strong> = still strong, momentum fading.<br><strong>Lagging ↙</strong> = weak trend + weak momentum.<br><strong>Improving ↖</strong> = weak trend, momentum recovering.<br><br>For our weekly process, focus on <strong>direction and tail persistence</strong>, not just the current quadrant.</div></div>
+<div class="side-card"><h3>Method note</h3><div class="status">This is a custom RRG-style approximation based on relative price vs SPY, smoothing and rolling normalization. It is <strong>not</strong> the proprietary JdK RS-Ratio / RS-Momentum calculation.</div></div>
+</aside>
+</div>
+</main>
+<script>
+const qs=new URLSearchParams(location.search);
+const universe=qs.get("universe")==="industries"?"industries":"sectors";
+let tf="1D",trail=10,payload=null;
+const svg=document.getElementById("rrg"),tip=document.getElementById("tip");
+const NS="http://www.w3.org/2000/svg";
+const selected=new Set();
+const palette=["#60a5fa","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#fb7185","#84cc16","#f97316","#c084fc","#2dd4bf","#eab308","#38bdf8","#4ade80","#f43f5e","#818cf8"];
+function el(tag,attrs,text){attrs=attrs||{};text=text||"";const n=document.createElementNS(NS,tag);Object.entries(attrs).forEach(function(kv){n.setAttribute(kv[0],kv[1])});if(text)n.textContent=text;return n}
+function quad(x,y){if(x>=100&&y>=100)return["Leading","leading"];if(x>=100&&y<100)return["Weakening","weakening"];if(x<100&&y<100)return["Lagging","lagging"];return["Improving","improving"]}
+function universeInfo(){return payload.universes[universe]}
+function latestData(t){return (payload.timeframes[tf]||{})[t]||[]}
+function allTickers(){return Object.values(universeInfo()).flat()}
+function setupText(){const isSec=universe==="sectors";document.getElementById("pageTitle").textContent=isSec?"Sector Rotation RRG":"Industry Rotation RRG";document.getElementById("chartTitle").textContent=(isSec?"Sector Rotation — ":"Industry Rotation — ")+tf;document.getElementById("pageSub").textContent=(isSec?"Broad sector layer only":"Industry / sub-sector confirmation layer")+" · relative rotation versus SPY · StockCharts-style layout."}
+function buildControls(){
+ const box=document.getElementById("symbols");box.innerHTML="";
+ for(const entry of Object.entries(universeInfo())){
+  const group=entry[0],tickers=entry[1],g=document.createElement("div");g.className="group";
+  const gn=document.createElement("div");gn.className="group-name";gn.textContent=group;g.appendChild(gn);
+  tickers.forEach(function(t){const d=latestData(t),p=d[d.length-1],q=p?quad(p.ratio,p.momentum):["No data",""];const row=document.createElement("label");row.className="symrow";row.innerHTML='<span class="symleft"><input type="checkbox" '+(selected.has(t)?"checked":"")+' data-symbol="'+t+'"><span>'+t+'</span></span><span class="quad '+q[1]+'">'+q[0]+'</span>';g.appendChild(row)});
+  box.appendChild(g);
+ }
+ box.querySelectorAll("input").forEach(function(i){i.addEventListener("change",function(){i.checked?selected.add(i.dataset.symbol):selected.delete(i.dataset.symbol);render()})});
+}
+function extent(series){let xs=[],ys=[];series.forEach(function(t){latestData(t).slice(-trail).forEach(function(p){xs.push(p.ratio);ys.push(p.momentum)})});if(!xs.length)return[96,104,96,104];let xmin=Math.min.apply(null,xs.concat([100])),xmax=Math.max.apply(null,xs.concat([100])),ymin=Math.min.apply(null,ys.concat([100])),ymax=Math.max.apply(null,ys.concat([100]));const xp=Math.max(.8,(xmax-xmin)*.15),yp=Math.max(.8,(ymax-ymin)*.15);return[xmin-xp,xmax+xp,ymin-yp,ymax+yp]}
+function render(){
+ setupText();svg.innerHTML="";
+ const tickers=allTickers().filter(function(t){return selected.has(t)&&latestData(t).length});
+ const ex=extent(tickers),xmin=ex[0],xmax=ex[1],ymin=ex[2],ymax=ex[3];
+ const W=1000,H=620,L=74,R=22,T=28,B=58,iw=W-L-R,ih=H-T-B;
+ const X=function(x){return L+(x-xmin)/(xmax-xmin)*iw},Y=function(y){return T+(ymax-y)/(ymax-ymin)*ih};
+ const x100=X(100),y100=Y(100);
+ svg.appendChild(el("rect",{x:L,y:T,width:Math.max(0,x100-L),height:Math.max(0,y100-T),fill:"rgba(59,130,246,.075)"}));
+ svg.appendChild(el("rect",{x:x100,y:T,width:Math.max(0,W-R-x100),height:Math.max(0,y100-T),fill:"rgba(34,197,94,.075)"}));
+ svg.appendChild(el("rect",{x:L,y:y100,width:Math.max(0,x100-L),height:Math.max(0,H-B-y100),fill:"rgba(239,68,68,.07)"}));
+ svg.appendChild(el("rect",{x:x100,y:y100,width:Math.max(0,W-R-x100),height:Math.max(0,H-B-y100),fill:"rgba(234,179,8,.07)"}));
+ for(let i=0;i<=8;i++){const x=L+iw*i/8,y=T+ih*i/8;svg.appendChild(el("line",{x1:x,y1:T,x2:x,y2:H-B,stroke:"#25303d","stroke-width":"1"}));svg.appendChild(el("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#25303d","stroke-width":"1"}))}
+ svg.appendChild(el("line",{x1:x100,y1:T,x2:x100,y2:H-B,stroke:"#7f8b99","stroke-width":"1.4"}));
+ svg.appendChild(el("line",{x1:L,y1:y100,x2:W-R,y2:y100,stroke:"#7f8b99","stroke-width":"1.4"}));
+ [["IMPROVING",L+16,T+22,"#74a9ff"],["LEADING",W-R-92,T+22,"#59cf93"],["LAGGING",L+16,H-B-14,"#ec7782"],["WEAKENING",W-R-112,H-B-14,"#e9c35e"]].forEach(function(a){svg.appendChild(el("text",{x:a[1],y:a[2],fill:a[3],"font-size":"12","font-weight":"700","letter-spacing":"1"},a[0]))});
+ svg.appendChild(el("text",{x:L+iw/2,y:H-14,fill:"#8f9baa","font-size":"11","text-anchor":"middle"},"Relative trend strength →"));
+ svg.appendChild(el("text",{x:18,y:T+ih/2,fill:"#8f9baa","font-size":"11","text-anchor":"middle",transform:"rotate(-90 18 "+(T+ih/2)+")"},"Relative momentum →"));
+ tickers.forEach(function(t){
+  const arr=latestData(t).slice(-trail);if(arr.length<2)return;
+  const col=palette[allTickers().indexOf(t)%palette.length],pts=arr.map(function(p){return X(p.ratio)+","+Y(p.momentum)}).join(" ");
+  svg.appendChild(el("polyline",{points:pts,fill:"none",stroke:col,"stroke-width":"2.2","stroke-linecap":"round","stroke-linejoin":"round",opacity:".9"}));
+  arr.slice(0,-1).forEach(function(p,i){svg.appendChild(el("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.5,fill:col,opacity:String(.2+.6*(i/(arr.length-1))) }))});
+  const p=arr[arr.length-1],prev=arr[arr.length-2],cx=X(p.ratio),cy=Y(p.momentum),dx=cx-X(prev.ratio),dy=cy-Y(prev.momentum),mag=Math.hypot(dx,dy)||1,ux=dx/mag,uy=dy/mag;
+  svg.appendChild(el("circle",{cx:cx,cy:cy,r:6.5,fill:col,stroke:"#0b0e13","stroke-width":"2"}));
+  svg.appendChild(el("line",{x1:cx-ux*2,y1:cy-uy*2,x2:cx+ux*14,y2:cy+uy*14,stroke:col,"stroke-width":"2.3"}));
+  svg.appendChild(el("text",{x:cx+10,y:cy-10,fill:"#f3f7fb","font-size":"12","font-weight":"700","paint-order":"stroke",stroke:"#0b0e13","stroke-width":"4"},t));
+  const hit=el("circle",{cx:cx,cy:cy,r:16,fill:"transparent"});svg.appendChild(hit);
+  hit.addEventListener("mousemove",function(e){const q=quad(p.ratio,p.momentum)[0];tip.style.display="block";tip.innerHTML="<strong>"+t+"</strong><br>"+q+"<br>RS strength "+p.ratio.toFixed(2)+"<br>Momentum "+p.momentum.toFixed(2)+"<br>"+tf+" · "+arr.length+"-bar tail";const rr=svg.getBoundingClientRect();tip.style.left=(e.clientX-rr.left+12)+"px";tip.style.top=(e.clientY-rr.top+12)+"px"});
+  hit.addEventListener("mouseleave",function(){tip.style.display="none"});
+ });
+ for(let i=0;i<=4;i++){const xv=xmin+(xmax-xmin)*i/4,yv=ymin+(ymax-ymin)*i/4;svg.appendChild(el("text",{x:X(xv),y:H-B+20,fill:"#778493","font-size":"10","text-anchor":"middle"},xv.toFixed(1)));svg.appendChild(el("text",{x:L-10,y:Y(yv)+3,fill:"#778493","font-size":"10","text-anchor":"end"},yv.toFixed(1)))}
+ document.getElementById("updated").textContent="Updated "+new Date(payload.generated_at).toLocaleString();
+ buildControls();
+}
+document.querySelectorAll("[data-tf]").forEach(function(b){b.addEventListener("click",function(){tf=b.dataset.tf;document.querySelectorAll("[data-tf]").forEach(function(x){x.classList.toggle("active",x===b)});buildControls();render()})});
+document.getElementById("trail").addEventListener("change",function(e){trail=+e.target.value;render()});
+document.getElementById("allBtn").addEventListener("click",function(){selected.clear();allTickers().forEach(function(t){selected.add(t)});buildControls();render()});
+fetch("data/rrg.json?"+Date.now()).then(function(r){if(!r.ok)throw new Error("data not generated yet");return r.json()}).then(function(d){payload=d;allTickers().forEach(function(t){selected.add(t)});setupText();buildControls();render()}).catch(function(err){document.getElementById("updated").textContent="Waiting for first data build";svg.innerHTML='<text x="500" y="300" text-anchor="middle" fill="#8f9baa" font-size="16">RRG data will appear after the GitHub data workflow runs.</text>';console.error(err)});
+</script>
+</body></html>

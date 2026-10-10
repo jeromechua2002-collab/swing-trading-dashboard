@@ -41,6 +41,7 @@ STOCK_GROUPS = {
 # Same bar-count parameters for Daily and 1H. This follows the public
 # EdgeRater description that the timeframe itself defines the horizon.
 CONFIGS = {
+    "1W": {"period": "3y", "interval": "1wk"},
     "1D": {"period": "1y", "interval": "1d"},
     "1H": {"period": "60d", "interval": "1h"},
 }

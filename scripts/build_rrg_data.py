@@ -43,6 +43,7 @@ STOCK_GROUPS = {
 CONFIGS = {
     "1W": {"period": "3y", "interval": "1wk"},
     "1D": {"period": "1y", "interval": "1d"},
+    "4H": {"period": "60d", "interval": "1h", "synthetic_hours": 4},
     "1H": {"period": "60d", "interval": "1h"},
 }
 WINDOW = 14
@@ -114,6 +115,22 @@ def iso_label(ts) -> str:
     return t.isoformat()
 
 
+def synthetic_hour_bars(s: pd.Series, hours: int) -> pd.Series:
+    """Aggregate intraday closes into sequential N-hour bars within each session."""
+    s = s.dropna().sort_index()
+    if s.empty or hours <= 1:
+        return s
+    parts = []
+    for _, day in s.groupby(s.index.date):
+        day = day.sort_index()
+        groups = np.arange(len(day)) // hours
+        agg = day.groupby(groups).last()
+        times = [day.index[min((i + 1) * hours, len(day)) - 1] for i in range(len(agg))]
+        agg.index = pd.DatetimeIndex(times)
+        parts.append(agg)
+    return pd.concat(parts).sort_index() if parts else s.iloc[0:0]
+
+
 def trail_payload(asset: pd.Series, benchmark: pd.Series) -> list[dict]:
     calc = rrg_public_approx(asset, benchmark).tail(TAIL_POINTS)
     return [
@@ -151,7 +168,10 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     closes = {}
     for ticker in tickers:
         try:
-            closes[ticker] = close_series(data, ticker)
+            series = close_series(data, ticker)
+            if cfg.get("synthetic_hours"):
+                series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
+            closes[ticker] = series
         except Exception as exc:
             print(f"{label} missing {ticker}: {exc}")
 

@@ -241,6 +241,31 @@ def main() -> None:
 
     Path("data/stocks").mkdir(parents=True, exist_ok=True)
 
+    # Calibration/audit snapshot: recent daily closes for SPY + sector ETFs.
+    # This lets us independently reproduce and compare candidate RRG formulas.
+    audit_cfg = CONFIGS["1D"]
+    audit_tickers = sorted({MARKET_BENCHMARK, *[t for group in SECTOR_GROUPS.values() for t in group]})
+    audit_data = download_prices(audit_tickers, audit_cfg)
+    audit_prices = {}
+    for ticker in audit_tickers:
+        try:
+            series = close_series(audit_data, ticker).dropna().tail(180)
+            audit_prices[ticker] = [
+                {"time": iso_label(idx), "close": round(float(value), 6)}
+                for idx, value in series.items()
+            ]
+        except Exception as exc:
+            print(f"audit missing {ticker}: {exc}")
+    Path("data/rrg-audit.json").write_text(
+        json.dumps({
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "benchmark": MARKET_BENCHMARK,
+            "timeframe": "1D",
+            "prices": audit_prices,
+        }, indent=2),
+        encoding="utf-8",
+    )
+
     core_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "benchmark": MARKET_BENCHMARK,

@@ -133,6 +133,7 @@ let tf="1D";
 let trail=8;
 let benchmark="SPY";
 let payload=null;
+let stockPayload=null;
 const selected=new Set();
 const svg=document.getElementById("rrg");
 const benchSvg=document.getElementById("benchmarkChart");
@@ -146,13 +147,14 @@ function quadrant(x,y){if(x>=100&&y>=100)return"Leading";if(x>=100&&y<100)return
 function slugQuad(q){return q.toLowerCase()}
 function allSectorTickers(){return Object.values(payload.universes.sectors).flat()}
 function allIndustryTickers(){return Object.values(payload.universes.industries).flat()}
-function stockTickers(){return payload.universes.stocks[stockSector]||[]}
+function stockTickers(){return (stockPayload&&stockPayload.members)||[]}
 function dataBlock(){
   const b=payload.timeframes[tf];
   if(mode==="sectors") return b.sectors||{};
   if(mode==="industries") return b.industries||{};
-  const s=(b.stocks||{})[stockSector]||{};
-  return benchmark==="SPY"?(s.vs_SPY||{}):(s["vs_"+stockSector]||{});
+  const s=((stockPayload||{}).timeframes||{})[tf];
+  const stock=(s||{}).stock||{};
+  return benchmark==="SPY"?(stock.vs_SPY||{}):(stock["vs_"+stockSector]||{});
 }
 function groups(){
   if(mode==="sectors") return payload.universes.sectors;
@@ -160,12 +162,12 @@ function groups(){
   return {[stockSector+" constituents"]:stockTickers()};
 }
 function currentBenchmarkPrice(){
-  const b=payload.timeframes[tf];
-  if(mode==="stocks" && benchmark===stockSector){
-    const s=(b.stocks||{})[stockSector]||{};
-    return s.sector_price||[];
+  if(mode==="stocks"){
+    const s=(((stockPayload||{}).timeframes||{})[tf]||{});
+    if(benchmark===stockSector) return ((s.stock||{}).sector_price)||[];
+    return s.benchmark_price||[];
   }
-  return b.benchmark_price||[];
+  return payload.timeframes[tf].benchmark_price||[];
 }
 function latest(t){const a=dataBlock()[t]||[];return a[a.length-1]}
 function setupNavigation(){
@@ -179,7 +181,7 @@ function setupControls(){
   const bs=document.getElementById("benchmarkSelect");
   if(mode==="stocks"){
     sec.style.display="";
-    sec.innerHTML=allSectorTickers().map(t=>'<option value="'+t+'" '+(t===stockSector?"selected":"")+'>'+t+' stocks</option>').join("");
+    sec.innerHTML=(payload.universes.stock_sectors||allSectorTickers()).map(t=>'<option value="'+t+'" '+(t===stockSector?"selected":"")+'>'+t+' stocks</option>').join("");
     bs.innerHTML='<option value="SPY">Benchmark: SPY</option><option value="'+stockSector+'">Benchmark: '+stockSector+'</option>';
     bs.value=benchmark;
   }else{
@@ -325,18 +327,38 @@ document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=
 }));
 document.getElementById("trail").addEventListener("change",e=>{trail=+e.target.value;renderPlot()});
 document.getElementById("showAll").addEventListener("click",()=>{resetSelection();buildSymbolList();renderPlot()});
-document.getElementById("sectorSelect").addEventListener("change",e=>{
-  stockSector=e.target.value;benchmark="SPY";history.replaceState(null,"","rrg.html?mode=stocks&sector="+stockSector);resetSelection();fullRender();
+document.getElementById("sectorSelect").addEventListener("change",async e=>{
+  stockSector=e.target.value;benchmark="SPY";history.replaceState(null,"","rrg.html?mode=stocks&sector="+stockSector);
+  try{
+    await loadStockSector(stockSector);
+    resetSelection();fullRender();
+  }catch(err){
+    document.getElementById("updated").textContent="Stock data unavailable";
+    console.error(err);
+  }
 });
 document.getElementById("benchmarkSelect").addEventListener("change",e=>{benchmark=e.target.value;resetSelection();fullRender()});
 
-fetch("data/rrg.json?"+Date.now()).then(r=>{if(!r.ok)throw new Error("RRG data unavailable");return r.json()}).then(d=>{
-  payload=d;
-  if(!payload.universes.stocks[stockSector]) stockSector="XLK";
+async function loadStockSector(sector){
+  document.getElementById("updated").textContent="Loading "+sector+" stock data…";
+  const r=await fetch("data/stocks/"+encodeURIComponent(sector)+".json?"+Date.now());
+  if(!r.ok) throw new Error("Stock RRG data unavailable for "+sector);
+  stockPayload=await r.json();
+}
+async function boot(){
+  const r=await fetch("data/rrg-core.json?"+Date.now());
+  if(!r.ok) throw new Error("RRG core data unavailable");
+  payload=await r.json();
+  if(mode==="stocks"){
+    const valid=(payload.universes.stock_sectors||[]);
+    if(!valid.includes(stockSector)) stockSector="XLK";
+    await loadStockSector(stockSector);
+  }
   benchmark="SPY";
   resetSelection();
   fullRender();
-}).catch(err=>{
+}
+boot().catch(err=>{
   document.getElementById("updated").textContent="Data build unavailable";
   document.getElementById("pageSub").textContent="The latest RRG data build could not be loaded.";
   console.error(err);

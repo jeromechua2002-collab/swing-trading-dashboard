@@ -7,103 +7,340 @@
 <title>Rotation Radar</title>
 <link rel="stylesheet" href="dashboard.css">
 <style>
-.rrg-shell{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
-.rrg-panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn,.select{appearance:none;background:#0f141d;color:#dce4ed;border:1px solid #2a3442;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer}
-.btn.active{background:rgba(47,170,117,.14);border-color:rgba(47,170,117,.42);color:#ddf7e9}
-.rrg-wrap{position:relative;min-height:620px}
-#rrg{display:block;width:100%;height:620px}
-.side{display:flex;flex-direction:column;gap:12px}
-.side-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px}
-.side-card h3{font-size:12px;margin:0 0 8px}
-.group{margin-top:10px}.group:first-child{margin-top:0}.group-name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
-.symrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
-.symrow:last-child{border-bottom:0}.symleft{display:flex;align-items:center;gap:7px}.symleft input{accent-color:#35b77c}
-.quad{font-size:10px;color:var(--muted)}.quad.leading{color:#54c98f}.quad.weakening{color:#e4bd5a}.quad.lagging{color:#e66b78}.quad.improving{color:#6ea7ff}
-.status{font-size:10px;color:var(--muted);line-height:1.45}.status strong{color:#e6edf5}
-.tooltip{position:absolute;pointer-events:none;display:none;background:#0b0f15;border:1px solid #344050;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:5}
-@media(max-width:1000px){.rrg-shell{grid-template-columns:1fr}.rrg-wrap,#rrg{min-height:520px;height:520px}}
+:root{
+  --lead:#2f9e62;--lead-bg:rgba(47,158,98,.11);
+  --weak:#d6a32b;--weak-bg:rgba(214,163,43,.11);
+  --lag:#d85763;--lag-bg:rgba(216,87,99,.105);
+  --improve:#4889d8;--improve-bg:rgba(72,137,216,.11);
+}
+body{overflow-x:hidden}
+.rrg-app{max-width:1500px;margin:0 auto;padding:12px 16px 24px}
+.rrg-headbar{position:sticky;top:0;z-index:20;background:rgba(11,14,19,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.rrg-headbar-inner{max-width:1500px;margin:auto;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.rrg-brand strong{font-size:14px}.rrg-brand span{display:block;color:var(--muted);font-size:10px;margin-top:1px}
+.rrg-tabs{display:flex;gap:5px;flex-wrap:wrap}.rrg-tabs a{font-size:11px;padding:7px 10px;border:1px solid transparent;border-radius:8px;color:#aeb8c5}.rrg-tabs a.active{background:rgba(47,170,117,.13);border-color:rgba(47,170,117,.35);color:#e2f7eb}
+.top-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:10px 0 10px}
+.top-row h1{font-size:23px;margin:0 0 3px}.top-row p{font-size:11px;color:var(--muted);margin:0;max-width:800px}
+.controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ctrl,.ctrl-select{background:#0f141d;color:#dbe4ee;border:1px solid #2b3542;border-radius:8px;padding:7px 9px;font-size:11px;cursor:pointer}
+.ctrl.active{background:#1a2c24;border-color:#377c5b;color:#e4f8ed}.ctrl:hover,.ctrl-select:hover{border-color:#445164}
+.crumb{font-size:10px;color:var(--muted);margin-bottom:5px}.crumb a{color:#b9c7d5}.crumb a:hover{color:white}
+.benchmark-panel,.rrg-panel,.side-card{background:var(--panel);border:1px solid var(--border);border-radius:12px}
+.benchmark-panel{margin-bottom:12px;overflow:hidden}
+.panel-head2{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-bottom:1px solid var(--border)}
+.panel-head2 strong{font-size:12px}.panel-head2 span{font-size:10px;color:var(--muted)}
+#benchmarkChart{width:100%;height:115px;display:block}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:12px}
+.rrg-panel{overflow:hidden}.plot-wrap{position:relative}.plot-area{width:100%;height:650px;display:block}
+.side{display:flex;flex-direction:column;gap:10px}.side-card{padding:11px}.side-card h3{font-size:12px;margin:0 0 8px}
+.symbol-group{margin-top:10px}.symbol-group:first-child{margin-top:0}.group-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#7f8b99;margin-bottom:4px}
+.symbol-row{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10.5px;cursor:pointer}
+.symbol-row:last-child{border-bottom:0}.symbol-row input{accent-color:#41b883}.symbol-row:hover .ticker{color:white}.ticker{font-weight:650}.quad{font-size:9.5px}.leading{color:#55ca8f}.weakening{color:#e1b84d}.lagging{color:#e66d78}.improving{color:#73aaff}
+.legend-copy{font-size:10px;line-height:1.5;color:var(--muted)}.legend-copy strong{color:#e1e8ef}
+.notice{font-size:9.5px;line-height:1.45;color:#7f8b99}
+.tooltip{position:absolute;pointer-events:none;display:none;z-index:5;background:#080b10;border:1px solid #3a4554;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.45;box-shadow:0 8px 26px rgba(0,0,0,.4)}
+.stock-hint{font-size:10px;color:#9faaba;margin-top:5px}
+.backline{display:none;margin-bottom:8px}.backline.show{display:block}.backline a{font-size:11px;color:#bed6c8}
+@media(max-width:980px){.workspace{grid-template-columns:1fr}.plot-area{height:560px}.rrg-headbar-inner{align-items:flex-start;flex-direction:column}.side{display:grid;grid-template-columns:1fr 1fr}.side-card:first-child{grid-column:1/-1}}
+@media(max-width:650px){.side{grid-template-columns:1fr}.plot-area{height:510px}.rrg-app{padding:8px}.controls{width:100%}.ctrl,.ctrl-select{flex:1 1 auto}.rrg-tabs{width:100%}}
 </style>
 </head>
 <body>
-<header class="topbar"><div class="topbar-inner"><div class="brand"><strong>Trading Desk</strong><span>Rotation Radar</span></div><nav class="nav"><a href="index.html">Overview</a><a href="sectors.html">Sectors</a><a href="industries.html">Industries</a><a href="rates.html">Rates</a></nav></div></header>
-<main class="wrap shell">
-<section class="hero"><div><h1 id="pageTitle">Rotation Radar</h1><p id="pageSub">Relative rotation versus SPY. StockCharts-style layout, using our own RRG-style approximation rather than proprietary JdK values.</p></div><div class="toolbar"><button class="btn active" data-tf="1D">1D</button><button class="btn" data-tf="1H">1H</button><select id="trail" class="select"><option value="5">5-bar tail</option><option value="10" selected>10-bar tail</option><option value="15">15-bar tail</option></select><button id="allBtn" class="btn">Show all</button></div></section>
-<div class="rrg-shell">
-<section class="rrg-panel">
-<div class="panel-head"><div><div class="panel-title" id="chartTitle">RRG</div><div class="panel-note">Benchmark: SPY · centre = 100 / 100</div></div><div class="panel-note" id="updated">Loading…</div></div>
-<div class="rrg-wrap"><svg id="rrg" viewBox="0 0 1000 620" preserveAspectRatio="none"></svg><div class="tooltip" id="tip"></div></div>
+<header class="rrg-headbar"><div class="rrg-headbar-inner">
+  <div class="rrg-brand"><strong>Rotation Radar</strong><span>Standalone RRG workspace</span></div>
+  <nav class="rrg-tabs">
+    <a id="tabSectors" href="rrg.html?mode=sectors">Sector RRG</a>
+    <a id="tabIndustries" href="rrg.html?mode=industries">Industry RRG</a>
+    <a id="tabStocks" href="rrg.html?mode=stocks&sector=XLK">Stock RRG</a>
+  </nav>
+</div></header>
+
+<main class="rrg-app">
+<div id="backline" class="backline"><a href="rrg.html?mode=sectors">← Back to Sector RRG</a></div>
+<section class="top-row">
+  <div>
+    <div id="crumb" class="crumb"></div>
+    <h1 id="pageTitle">Rotation Radar</h1>
+    <p id="pageSub">Loading data…</p>
+    <div id="stockHint" class="stock-hint"></div>
+  </div>
+  <div class="controls">
+    <select id="sectorSelect" class="ctrl-select" style="display:none"></select>
+    <select id="benchmarkSelect" class="ctrl-select"></select>
+    <button class="ctrl active" data-tf="1D">1D</button>
+    <button class="ctrl" data-tf="1H">1H</button>
+    <select id="trail" class="ctrl-select">
+      <option value="3">3 bars</option>
+      <option value="5">5 bars</option>
+      <option value="8" selected>8 bars</option>
+      <option value="10">10 bars</option>
+      <option value="12">12 bars</option>
+      <option value="16">16 bars</option>
+    </select>
+    <button id="showAll" class="ctrl">Show all</button>
+  </div>
 </section>
-<aside class="side">
-<div class="side-card"><h3>Symbols</h3><div id="symbols"></div></div>
-<div class="side-card"><h3>How to read it</h3><div class="status"><strong>Leading ↗</strong> = strong relative trend + momentum.<br><strong>Weakening ↘</strong> = still strong, momentum fading.<br><strong>Lagging ↙</strong> = weak trend + weak momentum.<br><strong>Improving ↖</strong> = weak trend, momentum recovering.<br><br>For our weekly process, focus on <strong>direction and tail persistence</strong>, not just the current quadrant.</div></div>
-<div class="side-card"><h3>Method note</h3><div class="status">This is a custom RRG-style approximation based on relative price vs SPY, smoothing and rolling normalization. It is <strong>not</strong> the proprietary JdK RS-Ratio / RS-Momentum calculation.</div></div>
-</aside>
+
+<section class="benchmark-panel">
+  <div class="panel-head2">
+    <strong id="benchTitle">Benchmark · SPY</strong>
+    <span id="updated">Loading…</span>
+  </div>
+  <svg id="benchmarkChart" viewBox="0 0 1200 115" preserveAspectRatio="none"></svg>
+</section>
+
+<div class="workspace">
+  <section class="rrg-panel">
+    <div class="panel-head2">
+      <strong id="plotTitle">Relative Rotation</strong>
+      <span id="plotMeta">Benchmark SPY · 100 / 100 centre</span>
+    </div>
+    <div class="plot-wrap">
+      <svg id="rrg" class="plot-area" viewBox="0 0 1000 650" preserveAspectRatio="none"></svg>
+      <div id="tip" class="tooltip"></div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="side-card">
+      <h3 id="symbolsTitle">Symbols</h3>
+      <div id="symbols"></div>
+    </div>
+    <div class="side-card">
+      <h3>RRG read</h3>
+      <div class="legend-copy">
+        <strong class="leading">Leading</strong> — strong relative trend + positive momentum.<br>
+        <strong class="weakening">Weakening</strong> — still strong, momentum fading.<br>
+        <strong class="lagging">Lagging</strong> — weak relative trend + weak momentum.<br>
+        <strong class="improving">Improving</strong> — weak trend, momentum recovering.<br><br>
+        The <strong>large ringed circle</strong> is the current/head point. Smaller fading circles are prior bars.
+      </div>
+    </div>
+    <div class="side-card">
+      <h3>Calculation</h3>
+      <div class="notice">Public RRG-style approximation: relative price ratio → WMA smoothing → rolling normalization around 100 → normalized momentum. It is designed to mirror the public StockCharts/EdgeRater behaviour, but it is not the proprietary JdK formula.</div>
+    </div>
+  </aside>
 </div>
 </main>
+
 <script>
-const qs=new URLSearchParams(location.search);
-const universe=qs.get("universe")==="industries"?"industries":"sectors";
-let tf="1D",trail=10,payload=null;
-const svg=document.getElementById("rrg"),tip=document.getElementById("tip");
-const NS="http://www.w3.org/2000/svg";
+const Q=new URLSearchParams(location.search);
+let mode=Q.get("mode") || (Q.get("universe")==="industries"?"industries":"sectors");
+if(!["sectors","industries","stocks"].includes(mode)) mode="sectors";
+let stockSector=Q.get("sector") || "XLK";
+let tf="1D";
+let trail=8;
+let benchmark="SPY";
+let payload=null;
 const selected=new Set();
-const palette=["#60a5fa","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#fb7185","#84cc16","#f97316","#c084fc","#2dd4bf","#eab308","#38bdf8","#4ade80","#f43f5e","#818cf8"];
-function el(tag,attrs,text){attrs=attrs||{};text=text||"";const n=document.createElementNS(NS,tag);Object.entries(attrs).forEach(function(kv){n.setAttribute(kv[0],kv[1])});if(text)n.textContent=text;return n}
-function quad(x,y){if(x>=100&&y>=100)return["Leading","leading"];if(x>=100&&y<100)return["Weakening","weakening"];if(x<100&&y<100)return["Lagging","lagging"];return["Improving","improving"]}
-function universeInfo(){return payload.universes[universe]}
-function latestData(t){return (payload.timeframes[tf]||{})[t]||[]}
-function allTickers(){return Object.values(universeInfo()).flat()}
-function setupText(){const isSec=universe==="sectors";document.getElementById("pageTitle").textContent=isSec?"Sector Rotation RRG":"Industry Rotation RRG";document.getElementById("chartTitle").textContent=(isSec?"Sector Rotation — ":"Industry Rotation — ")+tf;document.getElementById("pageSub").textContent=(isSec?"Broad sector layer only":"Industry / sub-sector confirmation layer")+" · relative rotation versus SPY · StockCharts-style layout."}
-function buildControls(){
- const box=document.getElementById("symbols");box.innerHTML="";
- for(const entry of Object.entries(universeInfo())){
-  const group=entry[0],tickers=entry[1],g=document.createElement("div");g.className="group";
-  const gn=document.createElement("div");gn.className="group-name";gn.textContent=group;g.appendChild(gn);
-  tickers.forEach(function(t){const d=latestData(t),p=d[d.length-1],q=p?quad(p.ratio,p.momentum):["No data",""];const row=document.createElement("label");row.className="symrow";row.innerHTML='<span class="symleft"><input type="checkbox" '+(selected.has(t)?"checked":"")+' data-symbol="'+t+'"><span>'+t+'</span></span><span class="quad '+q[1]+'">'+q[0]+'</span>';g.appendChild(row)});
-  box.appendChild(g);
- }
- box.querySelectorAll("input").forEach(function(i){i.addEventListener("change",function(){i.checked?selected.add(i.dataset.symbol):selected.delete(i.dataset.symbol);render()})});
+const svg=document.getElementById("rrg");
+const benchSvg=document.getElementById("benchmarkChart");
+const tip=document.getElementById("tip");
+const NS="http://www.w3.org/2000/svg";
+const COLORS={Leading:"#3bb273",Weakening:"#d7a928",Lagging:"#dc5e69",Improving:"#4f8fdc"};
+const BGS={Leading:"rgba(59,178,115,.11)",Weakening:"rgba(215,169,40,.11)",Lagging:"rgba(220,94,105,.105)",Improving:"rgba(79,143,220,.11)"};
+
+function E(tag,attrs,text){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{})) n.setAttribute(k,v);if(text)n.textContent=text;return n}
+function quadrant(x,y){if(x>=100&&y>=100)return"Leading";if(x>=100&&y<100)return"Weakening";if(x<100&&y<100)return"Lagging";return"Improving"}
+function slugQuad(q){return q.toLowerCase()}
+function allSectorTickers(){return Object.values(payload.universes.sectors).flat()}
+function allIndustryTickers(){return Object.values(payload.universes.industries).flat()}
+function stockTickers(){return payload.universes.stocks[stockSector]||[]}
+function dataBlock(){
+  const b=payload.timeframes[tf];
+  if(mode==="sectors") return b.sectors||{};
+  if(mode==="industries") return b.industries||{};
+  const s=(b.stocks||{})[stockSector]||{};
+  return benchmark==="SPY"?(s.vs_SPY||{}):(s["vs_"+stockSector]||{});
 }
-function extent(series){let xs=[],ys=[];series.forEach(function(t){latestData(t).slice(-trail).forEach(function(p){xs.push(p.ratio);ys.push(p.momentum)})});if(!xs.length)return[96,104,96,104];let xmin=Math.min.apply(null,xs.concat([100])),xmax=Math.max.apply(null,xs.concat([100])),ymin=Math.min.apply(null,ys.concat([100])),ymax=Math.max.apply(null,ys.concat([100]));const xp=Math.max(.8,(xmax-xmin)*.15),yp=Math.max(.8,(ymax-ymin)*.15);return[xmin-xp,xmax+xp,ymin-yp,ymax+yp]}
-function render(){
- setupText();svg.innerHTML="";
- const tickers=allTickers().filter(function(t){return selected.has(t)&&latestData(t).length});
- const ex=extent(tickers),xmin=ex[0],xmax=ex[1],ymin=ex[2],ymax=ex[3];
- const W=1000,H=620,L=74,R=22,T=28,B=58,iw=W-L-R,ih=H-T-B;
- const X=function(x){return L+(x-xmin)/(xmax-xmin)*iw},Y=function(y){return T+(ymax-y)/(ymax-ymin)*ih};
- const x100=X(100),y100=Y(100);
- svg.appendChild(el("rect",{x:L,y:T,width:Math.max(0,x100-L),height:Math.max(0,y100-T),fill:"rgba(59,130,246,.075)"}));
- svg.appendChild(el("rect",{x:x100,y:T,width:Math.max(0,W-R-x100),height:Math.max(0,y100-T),fill:"rgba(34,197,94,.075)"}));
- svg.appendChild(el("rect",{x:L,y:y100,width:Math.max(0,x100-L),height:Math.max(0,H-B-y100),fill:"rgba(239,68,68,.07)"}));
- svg.appendChild(el("rect",{x:x100,y:y100,width:Math.max(0,W-R-x100),height:Math.max(0,H-B-y100),fill:"rgba(234,179,8,.07)"}));
- for(let i=0;i<=8;i++){const x=L+iw*i/8,y=T+ih*i/8;svg.appendChild(el("line",{x1:x,y1:T,x2:x,y2:H-B,stroke:"#25303d","stroke-width":"1"}));svg.appendChild(el("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#25303d","stroke-width":"1"}))}
- svg.appendChild(el("line",{x1:x100,y1:T,x2:x100,y2:H-B,stroke:"#7f8b99","stroke-width":"1.4"}));
- svg.appendChild(el("line",{x1:L,y1:y100,x2:W-R,y2:y100,stroke:"#7f8b99","stroke-width":"1.4"}));
- [["IMPROVING",L+16,T+22,"#74a9ff"],["LEADING",W-R-92,T+22,"#59cf93"],["LAGGING",L+16,H-B-14,"#ec7782"],["WEAKENING",W-R-112,H-B-14,"#e9c35e"]].forEach(function(a){svg.appendChild(el("text",{x:a[1],y:a[2],fill:a[3],"font-size":"12","font-weight":"700","letter-spacing":"1"},a[0]))});
- svg.appendChild(el("text",{x:L+iw/2,y:H-14,fill:"#8f9baa","font-size":"11","text-anchor":"middle"},"Relative trend strength →"));
- svg.appendChild(el("text",{x:18,y:T+ih/2,fill:"#8f9baa","font-size":"11","text-anchor":"middle",transform:"rotate(-90 18 "+(T+ih/2)+")"},"Relative momentum →"));
- tickers.forEach(function(t){
-  const arr=latestData(t).slice(-trail);if(arr.length<2)return;
-  const col=palette[allTickers().indexOf(t)%palette.length],pts=arr.map(function(p){return X(p.ratio)+","+Y(p.momentum)}).join(" ");
-  svg.appendChild(el("polyline",{points:pts,fill:"none",stroke:col,"stroke-width":"2.2","stroke-linecap":"round","stroke-linejoin":"round",opacity:".9"}));
-  arr.slice(0,-1).forEach(function(p,i){svg.appendChild(el("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.5,fill:col,opacity:String(.2+.6*(i/(arr.length-1))) }))});
-  const p=arr[arr.length-1],prev=arr[arr.length-2],cx=X(p.ratio),cy=Y(p.momentum),dx=cx-X(prev.ratio),dy=cy-Y(prev.momentum),mag=Math.hypot(dx,dy)||1,ux=dx/mag,uy=dy/mag;
-  svg.appendChild(el("circle",{cx:cx,cy:cy,r:6.5,fill:col,stroke:"#0b0e13","stroke-width":"2"}));
-  svg.appendChild(el("line",{x1:cx-ux*2,y1:cy-uy*2,x2:cx+ux*14,y2:cy+uy*14,stroke:col,"stroke-width":"2.3"}));
-  svg.appendChild(el("text",{x:cx+10,y:cy-10,fill:"#f3f7fb","font-size":"12","font-weight":"700","paint-order":"stroke",stroke:"#0b0e13","stroke-width":"4"},t));
-  const hit=el("circle",{cx:cx,cy:cy,r:16,fill:"transparent"});svg.appendChild(hit);
-  hit.addEventListener("mousemove",function(e){const q=quad(p.ratio,p.momentum)[0];tip.style.display="block";tip.innerHTML="<strong>"+t+"</strong><br>"+q+"<br>RS strength "+p.ratio.toFixed(2)+"<br>Momentum "+p.momentum.toFixed(2)+"<br>"+tf+" · "+arr.length+"-bar tail";const rr=svg.getBoundingClientRect();tip.style.left=(e.clientX-rr.left+12)+"px";tip.style.top=(e.clientY-rr.top+12)+"px"});
-  hit.addEventListener("mouseleave",function(){tip.style.display="none"});
- });
- for(let i=0;i<=4;i++){const xv=xmin+(xmax-xmin)*i/4,yv=ymin+(ymax-ymin)*i/4;svg.appendChild(el("text",{x:X(xv),y:H-B+20,fill:"#778493","font-size":"10","text-anchor":"middle"},xv.toFixed(1)));svg.appendChild(el("text",{x:L-10,y:Y(yv)+3,fill:"#778493","font-size":"10","text-anchor":"end"},yv.toFixed(1)))}
- document.getElementById("updated").textContent="Updated "+new Date(payload.generated_at).toLocaleString();
- buildControls();
+function groups(){
+  if(mode==="sectors") return payload.universes.sectors;
+  if(mode==="industries") return payload.universes.industries;
+  return {[stockSector+" constituents"]:stockTickers()};
 }
-document.querySelectorAll("[data-tf]").forEach(function(b){b.addEventListener("click",function(){tf=b.dataset.tf;document.querySelectorAll("[data-tf]").forEach(function(x){x.classList.toggle("active",x===b)});buildControls();render()})});
-document.getElementById("trail").addEventListener("change",function(e){trail=+e.target.value;render()});
-document.getElementById("allBtn").addEventListener("click",function(){selected.clear();allTickers().forEach(function(t){selected.add(t)});buildControls();render()});
-fetch("data/rrg.json?"+Date.now()).then(function(r){if(!r.ok)throw new Error("data not generated yet");return r.json()}).then(function(d){payload=d;allTickers().forEach(function(t){selected.add(t)});setupText();buildControls();render()}).catch(function(err){document.getElementById("updated").textContent="Waiting for first data build";svg.innerHTML='<text x="500" y="300" text-anchor="middle" fill="#8f9baa" font-size="16">RRG data will appear after the GitHub data workflow runs.</text>';console.error(err)});
+function currentBenchmarkPrice(){
+  const b=payload.timeframes[tf];
+  if(mode==="stocks" && benchmark===stockSector){
+    const s=(b.stocks||{})[stockSector]||{};
+    return s.sector_price||[];
+  }
+  return b.benchmark_price||[];
+}
+function latest(t){const a=dataBlock()[t]||[];return a[a.length-1]}
+function setupNavigation(){
+  document.getElementById("tabSectors").classList.toggle("active",mode==="sectors");
+  document.getElementById("tabIndustries").classList.toggle("active",mode==="industries");
+  document.getElementById("tabStocks").classList.toggle("active",mode==="stocks");
+  document.getElementById("backline").classList.toggle("show",mode==="stocks");
+}
+function setupControls(){
+  const sec=document.getElementById("sectorSelect");
+  const bs=document.getElementById("benchmarkSelect");
+  if(mode==="stocks"){
+    sec.style.display="";
+    sec.innerHTML=allSectorTickers().map(t=>'<option value="'+t+'" '+(t===stockSector?"selected":"")+'>'+t+' stocks</option>').join("");
+    bs.innerHTML='<option value="SPY">Benchmark: SPY</option><option value="'+stockSector+'">Benchmark: '+stockSector+'</option>';
+    bs.value=benchmark;
+  }else{
+    sec.style.display="none";
+    benchmark="SPY";
+    bs.innerHTML='<option value="SPY">Benchmark: SPY</option>';
+    bs.value="SPY";
+  }
+}
+function setupText(){
+  if(mode==="sectors"){
+    document.getElementById("pageTitle").textContent="Sector Relative Rotation";
+    document.getElementById("pageSub").textContent="11 S&P sector ETFs measured against SPY. Click any sector head to drill directly into its constituent-stock RRG.";
+    document.getElementById("crumb").innerHTML="RRG / <strong>Sectors</strong>";
+    document.getElementById("stockHint").textContent="";
+    document.getElementById("symbolsTitle").textContent="Sector ETFs";
+  }else if(mode==="industries"){
+    document.getElementById("pageTitle").textContent="Industry Relative Rotation";
+    document.getElementById("pageSub").textContent="Industry and sub-sector ETFs kept separate from the broad sector layer, all referenced to SPY.";
+    document.getElementById("crumb").innerHTML="RRG / <strong>Industries</strong>";
+    document.getElementById("stockHint").textContent="";
+    document.getElementById("symbolsTitle").textContent="Industry ETFs";
+  }else{
+    document.getElementById("pageTitle").textContent=stockSector+" Stock Relative Rotation";
+    document.getElementById("pageSub").textContent="Constituent-stock deep dive for "+stockSector+". Default reference remains SPY; switch to "+stockSector+" when you want within-sector leadership.";
+    document.getElementById("crumb").innerHTML='<a href="rrg.html?mode=sectors">Sectors</a> / <strong>'+stockSector+' stocks</strong>';
+    document.getElementById("stockHint").textContent="Examples include NVDA / INTC when XLK is selected. This layer is intentionally separate from the weekly sector and industry screens.";
+    document.getElementById("symbolsTitle").textContent=stockSector+" stocks";
+  }
+  document.getElementById("plotTitle").textContent=(mode==="sectors"?"Sector":mode==="industries"?"Industry":"Stock")+" RRG · "+tf;
+  document.getElementById("plotMeta").textContent="Benchmark "+benchmark+" · centre = 100 / 100";
+  document.getElementById("benchTitle").textContent="Benchmark · "+benchmark;
+}
+function resetSelection(){
+  selected.clear();
+  Object.keys(dataBlock()).forEach(t=>selected.add(t));
+}
+function buildSymbolList(){
+  const box=document.getElementById("symbols");box.innerHTML="";
+  const db=dataBlock();
+  for(const [group,tickers] of Object.entries(groups())){
+    const wrap=document.createElement("div");wrap.className="symbol-group";
+    const title=document.createElement("div");title.className="group-title";title.textContent=group;wrap.appendChild(title);
+    tickers.forEach(t=>{
+      if(!db[t]) return;
+      const p=latest(t),q=p?quadrant(p.ratio,p.momentum):"";
+      const row=document.createElement("div");row.className="symbol-row";
+      row.innerHTML='<input type="checkbox" '+(selected.has(t)?"checked":"")+' data-t="'+t+'><span class="ticker">'+t+'</span><span class="quad '+slugQuad(q)+'">'+q+'</span>';
+      row.querySelector("input").addEventListener("change",e=>{e.target.checked?selected.add(t):selected.delete(t);renderPlot()});
+      row.querySelector(".ticker").addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
+      wrap.appendChild(row);
+    });
+    box.appendChild(wrap);
+  }
+}
+function extents(tickers){
+  let xs=[],ys=[];
+  tickers.forEach(t=>(dataBlock()[t]||[]).slice(-trail).forEach(p=>{xs.push(p.ratio);ys.push(p.momentum)}));
+  if(!xs.length)return[97,103,97,103];
+  let xmin=Math.min(...xs,100),xmax=Math.max(...xs,100),ymin=Math.min(...ys,100),ymax=Math.max(...ys,100);
+  const span=Math.max(xmax-xmin,ymax-ymin,2.4);
+  const cx=(xmin+xmax)/2,cy=(ymin+ymax)/2,pad=span*.16;
+  return[cx-span/2-pad,cx+span/2+pad,cy-span/2-pad,cy+span/2+pad];
+}
+function renderBenchmark(){
+  benchSvg.innerHTML="";
+  const arr=currentBenchmarkPrice();if(!arr.length)return;
+  const W=1200,H=115,L=16,R=16,T=12,B=18;
+  const vals=arr.map(d=>d.close),min=Math.min(...vals),max=Math.max(...vals),span=max-min||1;
+  const X=i=>L+i/(arr.length-1)*(W-L-R),Y=v=>T+(max-v)/span*(H-T-B);
+  for(let i=0;i<4;i++){const y=T+(H-T-B)*i/3;benchSvg.appendChild(E("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#202936","stroke-width":"1"}))}
+  const pts=arr.map((d,i)=>X(i)+","+Y(d.close)).join(" ");
+  benchSvg.appendChild(E("polyline",{points:pts,fill:"none",stroke:"#a8b5c4","stroke-width":"1.8"}));
+  const last=arr[arr.length-1];benchSvg.appendChild(E("circle",{cx:X(arr.length-1),cy:Y(last.close),r:4.5,fill:"#e7edf4"}));
+  benchSvg.appendChild(E("text",{x:W-R,y:16,fill:"#9aa7b6","font-size":"10","text-anchor":"end"},benchmark+" "+last.close.toFixed(2)));
+}
+function renderPlot(){
+  svg.innerHTML="";
+  const db=dataBlock();
+  const tickers=Object.keys(db).filter(t=>selected.has(t));
+  const ex=extents(tickers),xmin=ex[0],xmax=ex[1],ymin=ex[2],ymax=ex[3];
+  const W=1000,H=650,L=68,R=28,T=28,B=54,iw=W-L-R,ih=H-T-B;
+  const X=x=>L+(x-xmin)/(xmax-xmin)*iw,Y=y=>T+(ymax-y)/(ymax-ymin)*ih;
+  const x0=X(100),y0=Y(100);
+
+  svg.appendChild(E("rect",{x:L,y:T,width:Math.max(0,x0-L),height:Math.max(0,y0-T),fill:BGS.Improving}));
+  svg.appendChild(E("rect",{x:x0,y:T,width:Math.max(0,W-R-x0),height:Math.max(0,y0-T),fill:BGS.Leading}));
+  svg.appendChild(E("rect",{x:L,y:y0,width:Math.max(0,x0-L),height:Math.max(0,H-B-y0),fill:BGS.Lagging}));
+  svg.appendChild(E("rect",{x:x0,y:y0,width:Math.max(0,W-R-x0),height:Math.max(0,H-B-y0),fill:BGS.Weakening}));
+
+  for(let i=0;i<=8;i++){
+    const x=L+iw*i/8,y=T+ih*i/8;
+    svg.appendChild(E("line",{x1:x,y1:T,x2:x,y2:H-B,stroke:"#252e3a","stroke-width":"1"}));
+    svg.appendChild(E("line",{x1:L,y1:y,x2:W-R,y2:y,stroke:"#252e3a","stroke-width":"1"}));
+  }
+  svg.appendChild(E("line",{x1:x0,y1:T,x2:x0,y2:H-B,stroke:"#8793a0","stroke-width":"1.5"}));
+  svg.appendChild(E("line",{x1:L,y1:y0,x2:W-R,y2:y0,stroke:"#8793a0","stroke-width":"1.5"}));
+
+  [["IMPROVING",L+15,T+20,COLORS.Improving],["LEADING",W-R-82,T+20,COLORS.Leading],["LAGGING",L+15,H-B-13,COLORS.Lagging],["WEAKENING",W-R-103,H-B-13,COLORS.Weakening]].forEach(a=>svg.appendChild(E("text",{x:a[1],y:a[2],fill:a[3],"font-size":"11","font-weight":"700","letter-spacing":"1.1"},a[0])));
+  svg.appendChild(E("text",{x:x0+8,y:y0-8,fill:"#cfd7df","font-size":"10","font-weight":"700"},benchmark));
+  svg.appendChild(E("circle",{cx:x0,cy:y0,r:4,fill:"#cfd7df",stroke:"#0b0e13","stroke-width":"1.5"}));
+  svg.appendChild(E("text",{x:L+iw/2,y:H-12,fill:"#8895a4","font-size":"10.5","text-anchor":"middle"},"RS-Ratio (public approximation) →"));
+  svg.appendChild(E("text",{x:17,y:T+ih/2,fill:"#8895a4","font-size":"10.5","text-anchor":"middle",transform:"rotate(-90 17 "+(T+ih/2)+")"},"RS-Momentum (public approximation) →"));
+
+  tickers.forEach(t=>{
+    const arr=db[t].slice(-trail);if(arr.length<2)return;
+    const head=arr[arr.length-1],q=quadrant(head.ratio,head.momentum),c=COLORS[q];
+    const dist=Math.hypot(head.ratio-100,head.momentum-100);
+    const width=Math.min(4.2,1.7+dist*.42);
+    for(let i=1;i<arr.length;i++){
+      const a=arr[i-1],b=arr[i],opacity=.16+.74*(i/(arr.length-1));
+      svg.appendChild(E("line",{x1:X(a.ratio),y1:Y(a.momentum),x2:X(b.ratio),y2:Y(b.momentum),stroke:c,"stroke-width":width,"stroke-linecap":"round",opacity:opacity}));
+    }
+    arr.slice(0,-1).forEach((p,i)=>svg.appendChild(E("circle",{cx:X(p.ratio),cy:Y(p.momentum),r:2.8,fill:c,opacity:.18+.58*(i/Math.max(1,arr.length-2))})));
+    const cx=X(head.ratio),cy=Y(head.momentum);
+    svg.appendChild(E("circle",{cx,cy,r:11.5,fill:c,stroke:"#f4f7fa","stroke-width":"2.7"}));
+    svg.appendChild(E("circle",{cx,cy,r:5.2,fill:"#10151d",opacity:".24"}));
+    svg.appendChild(E("text",{x:cx+14,y:cy-12,fill:"#f3f6f9","font-size":"12","font-weight":"750","paint-order":"stroke",stroke:"#0a0d12","stroke-width":"4"},t));
+    const hit=E("circle",{cx,cy,r:22,fill:"transparent"});svg.appendChild(hit);
+    hit.style.cursor=mode==="sectors"?"pointer":"default";
+    hit.addEventListener("mousemove",e=>{
+      tip.style.display="block";
+      tip.innerHTML="<strong>"+t+"</strong><br>"+q+"<br>RS-Ratio "+head.ratio.toFixed(2)+"<br>RS-Momentum "+head.momentum.toFixed(2)+"<br>"+tf+" · "+arr.length+" bars"+(mode==="sectors"?"<br><span style='color:#9fb0c2'>Click to open "+t+" stocks</span>":"");
+      const r=svg.getBoundingClientRect();tip.style.left=(e.clientX-r.left+12)+"px";tip.style.top=(e.clientY-r.top+12)+"px";
+    });
+    hit.addEventListener("mouseleave",()=>tip.style.display="none");
+    hit.addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
+  });
+
+  for(let i=0;i<=4;i++){
+    const xv=xmin+(xmax-xmin)*i/4,yv=ymin+(ymax-ymin)*i/4;
+    svg.appendChild(E("text",{x:X(xv),y:H-B+18,fill:"#74808e","font-size":"9.5","text-anchor":"middle"},xv.toFixed(1)));
+    svg.appendChild(E("text",{x:L-8,y:Y(yv)+3,fill:"#74808e","font-size":"9.5","text-anchor":"end"},yv.toFixed(1)));
+  }
+}
+function fullRender(){
+  setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();
+  document.getElementById("updated").textContent="Data "+new Date(payload.generated_at).toLocaleString();
+}
+document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=>{
+  tf=b.dataset.tf;document.querySelectorAll("[data-tf]").forEach(x=>x.classList.toggle("active",x===b));
+  resetSelection();fullRender();
+}));
+document.getElementById("trail").addEventListener("change",e=>{trail=+e.target.value;renderPlot()});
+document.getElementById("showAll").addEventListener("click",()=>{resetSelection();buildSymbolList();renderPlot()});
+document.getElementById("sectorSelect").addEventListener("change",e=>{
+  stockSector=e.target.value;benchmark="SPY";history.replaceState(null,"","rrg.html?mode=stocks&sector="+stockSector);resetSelection();fullRender();
+});
+document.getElementById("benchmarkSelect").addEventListener("change",e=>{benchmark=e.target.value;resetSelection();fullRender()});
+
+fetch("data/rrg.json?"+Date.now()).then(r=>{if(!r.ok)throw new Error("RRG data unavailable");return r.json()}).then(d=>{
+  payload=d;
+  if(!payload.universes.stocks[stockSector]) stockSector="XLK";
+  benchmark="SPY";
+  resetSelection();
+  fullRender();
+}).catch(err=>{
+  document.getElementById("updated").textContent="Data build unavailable";
+  document.getElementById("pageSub").textContent="The latest RRG data build could not be loaded.";
+  console.error(err);
+});
 </script>
-</body></html>
+</body>
+</html>

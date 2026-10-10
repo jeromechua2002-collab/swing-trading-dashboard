@@ -140,7 +140,7 @@ body{overflow-x:hidden}
 </div>
 
 <section class="analytics-grid" id="sectorAnalytics">
-  <div class="analytics-card">
+  <div class="analytics-card" id="buddyCard">
     <h3>Buddy Confirmation</h3>
     <div class="notice" style="margin-bottom:8px">Measures whether sectors inside each bundle are rotating in the same direction. Wild Cards are matched to whichever major bundle they most closely resemble.</div>
     <div id="buddyBoard" class="buddy-grid"></div>
@@ -387,13 +387,17 @@ function renderPlot(){
 }
 function renderSectorAnalytics(){
   const wrap=document.getElementById("sectorAnalytics");
-  if(mode!=="sectors"){wrap.style.display="none";return}
+  if(mode==="stocks"){wrap.style.display="none";return}
   wrap.style.display="";
+  const buddyCard=document.getElementById("buddyCard");
+  buddyCard.style.display=mode==="sectors"?"":"none";
+  wrap.style.gridTemplateColumns=mode==="sectors"?"1fr 1fr":"1fr";
   const db=dataBlock();
   const metrics={};
   Object.keys(db).forEach(t=>metrics[t]=signalMetrics(db[t]));
   const board=document.getElementById("buddyBoard");board.innerHTML="";
   const primary=["Growth","Defensive","Value"];
+  if(mode==="sectors"){
   const vectors={};
   primary.forEach(group=>{
     const members=(payload.universes.sectors[group]||[]).filter(t=>metrics[t]);
@@ -417,6 +421,7 @@ function renderSectorAnalytics(){
     div.innerHTML='<div class="name">'+t+' · Wild Card</div><div class="meta">Moving '+directionLabel(metrics[t])+'<br>Closest buddy: '+best[0]+' ('+Math.round(best[1]*100)+'%)</div>';
     board.appendChild(div);
   });
+  }
 
   const longs=[],shorts=[];
   Object.keys(db).forEach(t=>{
@@ -426,7 +431,9 @@ function renderSectorAnalytics(){
   });
   longs.sort((a,b)=>b[1]-a[1]);shorts.sort((a,b)=>b[1]-a[1]);
   const max=Math.max(1,...longs.map(x=>x[1]),...shorts.map(x=>x[1]));
-  const lb=document.getElementById("leadershipBoard");lb.innerHTML='<div class="group-title">LONG-SIDE ROTATION</div>';
+  const lb=document.getElementById("leadershipBoard");
+  lb.parentElement.querySelector("h3").textContent=(mode==="industries"?"Industry ":"")+"Rotation Cycle / Leadership Board";
+  lb.innerHTML='<div class="group-title">LONG-SIDE ROTATION</div>';
   if(!longs.length)lb.innerHTML+='<div class="notice">No clean long-side sector rotation on this timeframe.</div>';
   longs.slice(0,5).forEach(x=>lb.innerHTML+='<div class="rank-row"><strong>'+x[0]+'</strong><div class="rank-track"><div class="rank-fill long" style="width:'+Math.max(5,x[1]/max*100)+'%"></div></div><div class="rank-score">'+x[3]+' · '+x[2]+'</div></div>');
   lb.innerHTML+='<div class="group-title" style="margin-top:12px">SHORT-SIDE ROTATION</div>';

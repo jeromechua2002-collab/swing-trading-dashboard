@@ -134,7 +134,11 @@ body{overflow-x:hidden}
     </div>
     <div class="side-card">
       <h3>Calculation</h3>
-      <div class="notice">Public RRG-style approximation: relative price ratio → WMA smoothing → rolling normalization around 100 → normalized momentum. It is designed to mirror the public StockCharts/EdgeRater behaviour, but it is not the proprietary JdK formula.</div>
+      <div class="notice"><strong>Calibrated public approximation:</strong><br>RS = Asset Close / Benchmark Close<br>RS-Ratio = 100 × MA8(RS) / MA18(RS)<br>RS-Momentum = 100 × RS-Ratio / MA4(RS-Ratio)<br><br>Uses <strong>raw closes</strong>. Calibrated against the 9 Oct EdgeRater sector + industry references. This is not the proprietary JdK formula.</div>
+    </div>
+    <div class="side-card">
+      <h3>Data Health</h3>
+      <div id="healthBox" class="notice">Checking feed…</div>
     </div>
   </aside>
 </div>
@@ -440,8 +444,37 @@ function renderSectorAnalytics(){
   if(!shorts.length)lb.innerHTML+='<div class="notice">No clean short-side sector rotation on this timeframe.</div>';
   shorts.slice(0,5).forEach(x=>lb.innerHTML+='<div class="rank-row"><strong>'+x[0]+'</strong><div class="rank-track"><div class="rank-fill short" style="width:'+Math.max(5,x[1]/max*100)+'%"></div></div><div class="rank-score">'+x[3]+' · '+x[2]+'</div></div>');
 }
+function renderHealth(){
+  const box=document.getElementById("healthBox");
+  if(!box||!payload)return;
+  const generated=new Date(payload.generated_at);
+  const ageH=(Date.now()-generated.getTime())/3600000;
+  const day=new Date().getDay();
+  const weekend=day===0||day===6;
+  const tfh=payload.health||{};
+  const expectedIndustries=Object.values(payload.universes.industries||{}).flat().length;
+  const active=tfh[tf]||{};
+  const coverageOk=(active.sector_coverage===11 && active.industry_coverage===expectedIndustries);
+  const fresh=ageH<=2.5 || weekend;
+  const status=(coverageOk&&fresh)?"Healthy ✅":"Check feed ⚠️";
+  const barRows=["1W","1D","4H","1H"].map(k=>{
+    const h=tfh[k]||{};
+    const when=h.latest_bar?new Date(h.latest_bar).toLocaleString():"—";
+    return k+": "+when;
+  }).join("<br>");
+  box.innerHTML="<strong>"+status+"</strong><br>"+
+    "Source: Yahoo Finance / yfinance<br>"+
+    "Price basis: raw close<br>"+
+    "Last build: "+generated.toLocaleString()+"<br>"+
+    "Build age: "+ageH.toFixed(1)+" h<br>"+
+    "Coverage: "+(active.sector_coverage||0)+"/11 sectors · "+
+      (active.industry_coverage||0)+"/"+expectedIndustries+" industries · "+
+      (active.stock_coverage||0)+" stocks<br><br>"+
+    "<strong>Latest benchmark bars</strong><br>"+barRows+
+    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 14/16 industry quadrants.";
+}
 function fullRender(){
-  setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();
+  setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();
   document.getElementById("updated").textContent="Data "+new Date(payload.generated_at).toLocaleString();
 }
 document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=>{

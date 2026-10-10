@@ -266,7 +266,7 @@ def main() -> None:
     audit_prices = {}
     for ticker in audit_tickers:
         try:
-            series = close_series(audit_data, ticker).dropna().tail(180)
+            series = close_series(audit_data, ticker).dropna().tail(320)
             audit_prices[ticker] = [
                 {"time": iso_label(idx), "close": round(float(value), 6)}
                 for idx, value in series.items()

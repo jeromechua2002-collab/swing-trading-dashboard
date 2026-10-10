@@ -218,7 +218,9 @@ def main() -> None:
     for label, cfg in CONFIGS.items():
         timeframes[label] = build_timeframe(label, cfg, sorted(tickers))
 
-    payload = {
+    Path("data/stocks").mkdir(parents=True, exist_ok=True)
+
+    core_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "benchmark": MARKET_BENCHMARK,
         "method": "Public RRG-style approximation; not proprietary JdK indicators",
@@ -231,13 +233,52 @@ def main() -> None:
         "universes": {
             "sectors": SECTOR_GROUPS,
             "industries": INDUSTRY_GROUPS,
+            "stock_sectors": list(STOCK_GROUPS.keys()),
+        },
+        "timeframes": {
+            tf: {
+                "sectors": block["sectors"],
+                "industries": block["industries"],
+                "benchmark_price": block["benchmark_price"],
+            }
+            for tf, block in timeframes.items()
+        },
+    }
+    Path("data/rrg-core.json").write_text(
+        json.dumps(core_payload, indent=2), encoding="utf-8"
+    )
+
+    for sector, members in STOCK_GROUPS.items():
+        stock_payload = {
+            "generated_at": core_payload["generated_at"],
+            "benchmark": MARKET_BENCHMARK,
+            "sector": sector,
+            "members": members,
+            "timeframes": {
+                tf: {
+                    "stock": block["stocks"].get(sector, {}),
+                    "benchmark_price": block["benchmark_price"],
+                }
+                for tf, block in timeframes.items()
+            },
+        }
+        Path(f"data/stocks/{sector}.json").write_text(
+            json.dumps(stock_payload, indent=2), encoding="utf-8"
+        )
+
+    # Keep the older combined file for compatibility while the UI migrates.
+    legacy_payload = {
+        **core_payload,
+        "universes": {
+            "sectors": SECTOR_GROUPS,
+            "industries": INDUSTRY_GROUPS,
             "stocks": STOCK_GROUPS,
         },
         "timeframes": timeframes,
     }
-
-    Path("data").mkdir(exist_ok=True)
-    Path("data/rrg.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    Path("data/rrg.json").write_text(
+        json.dumps(legacy_payload, indent=2), encoding="utf-8"
+    )
 
     for tf, block in timeframes.items():
         stock_count = sum(
@@ -247,7 +288,7 @@ def main() -> None:
             f"{tf}: sectors={len(block['sectors'])}, "
             f"industries={len(block['industries'])}, stocks={stock_count}"
         )
-    print("Generated data/rrg.json")
+    print("Generated lightweight rrg-core.json and lazy stock files")
 
 
 if __name__ == "__main__":

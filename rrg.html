@@ -229,9 +229,13 @@ function buildSymbolList(){
       if(!db[t]) return;
       const p=latest(t),q=p?quadrant(p.ratio,p.momentum):"";
       const row=document.createElement("div");row.className="symbol-row";
-      row.innerHTML='<input type="checkbox" '+(selected.has(t)?"checked":"")+' data-t="'+t+'><span class="ticker">'+t+'</span><span class="quad '+slugQuad(q)+'">'+q+'</span>';
-      row.querySelector("input").addEventListener("change",e=>{e.target.checked?selected.add(t):selected.delete(t);renderPlot()});
-      row.querySelector(".ticker").addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
+      const checkbox=document.createElement("input");
+      checkbox.type="checkbox";checkbox.checked=selected.has(t);checkbox.dataset.t=t;
+      checkbox.addEventListener("change",e=>{e.target.checked?selected.add(t):selected.delete(t);renderPlot()});
+      const tickerLabel=document.createElement("span");tickerLabel.className="ticker";tickerLabel.textContent=t;
+      tickerLabel.addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
+      const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);quadLabel.textContent=q;
+      row.appendChild(checkbox);row.appendChild(tickerLabel);row.appendChild(quadLabel);
       wrap.appendChild(row);
     });
     box.appendChild(wrap);

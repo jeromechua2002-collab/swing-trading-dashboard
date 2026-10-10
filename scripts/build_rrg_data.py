@@ -157,7 +157,7 @@ def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
         tickers=tickers,
         period=cfg["period"],
         interval=cfg["interval"],
-        auto_adjust=True,
+        auto_adjust=False,
         progress=False,
         threads=True,
         group_by="ticker",

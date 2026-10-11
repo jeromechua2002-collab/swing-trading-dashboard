@@ -1,0 +1,46 @@
+name: Sync Notion rotation model
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 22:15 UTC is after the U.S. cash close in both EDT and EST.
+    - cron: "15 22 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "notion-rotation-sync"
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_ROTATION_CHART_DS: "485d139e-0f47-45b2-bce8-bbd40f29bf33"
+      NOTION_ROTATION_SIGNAL_DS: "57786668-c8d4-4604-b009-a1706766cec3"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --disable-pip-version-check yfinance pandas numpy requests
+
+      - name: Check Notion token
+        run: |
+          if [ -z "$NOTION_TOKEN" ]; then
+            echo "::error::NOTION_TOKEN GitHub Actions secret is missing."
+            echo "Create a Notion internal integration, share the two Rotation databases with it,"
+            echo "then add its token as the repository secret NOTION_TOKEN."
+            exit 1
+          fi
+
+      - name: Refresh chart and state map
+        run: python scripts/sync_notion_rotation.py

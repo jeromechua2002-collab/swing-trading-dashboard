@@ -286,9 +286,9 @@ function setupText(){
     document.getElementById("symbolsTitle").textContent="Industry ETFs";
   }else{
     document.getElementById("pageTitle").textContent=stockSector+" Stock Relative Rotation";
-    document.getElementById("pageSub").textContent="Constituent-stock deep dive for "+stockSector+". Default reference remains SPY; switch to "+stockSector+" when you want within-sector leadership.";
+    document.getElementById("pageSub").textContent="Curated liquid-stock deep dive for "+stockSector+". Default reference remains SPY; switch to "+stockSector+" when you want within-sector leadership.";
     document.getElementById("crumb").innerHTML='<a href="rrg.html?mode=sectors">Sectors</a> / <strong>'+stockSector+' stocks</strong>';
-    document.getElementById("stockHint").textContent="Examples include NVDA / INTC when XLK is selected. This layer is intentionally separate from the weekly sector and industry screens.";
+    document.getElementById("stockHint").textContent="Curated drilldown list, not a live synchronized ETF holdings file. It is integrity-checked for fresh market data and reviewed separately for constituent changes.";
     document.getElementById("symbolsTitle").textContent=stockSector+" stocks";
   }
   document.getElementById("plotTitle").textContent=(mode==="sectors"?"Sector":mode==="industries"?"Industry":"Stock")+" RRG · "+tf;
@@ -552,6 +552,7 @@ function renderHealth(){
   box.innerHTML="<strong>"+status+"</strong><br>"+
     "Source: Yahoo Finance / yfinance<br>"+
     "Price basis: raw close<br>"+
+    "Stock universe: curated · reviewed "+(payload.stock_universe_reviewed||"—")+"<br>"+
     "Last build: "+generated.toLocaleString()+"<br>"+
     "Build age: "+ageH.toFixed(1)+" h<br>"+
     "Coverage: "+(active.sector_coverage||0)+"/11 sectors · "+

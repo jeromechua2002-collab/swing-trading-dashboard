@@ -122,7 +122,7 @@ def close_series(downloaded: pd.DataFrame, ticker: str) -> pd.Series:
             return block.iloc[:, 0]
         if ticker in lv1 and "Close" in lv0:
             return downloaded["Close"][ticker]
-    if ticker == MARKET_BENCHMARK and "Close" in downloaded.columns:
+    if "Close" in downloaded.columns:
         return downloaded["Close"]
     raise KeyError(f"Could not locate close data for {ticker}")
 
@@ -287,7 +287,23 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
                 series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
             closes[ticker] = series
         except Exception as exc:
-            print(f"{label} missing {ticker}: {exc}")
+            print(f"{label} batch missing {ticker}: {exc}")
+
+    # Yahoo occasionally returns a non-empty batch with one or two symbols
+    # missing. Retry only those symbols individually before failing closed.
+    missing = [ticker for ticker in tickers if ticker not in closes]
+    if missing:
+        print(f"{label}: retrying {len(missing)} missing symbols individually")
+    for ticker in missing:
+        try:
+            one = download_prices([ticker], cfg)
+            series = close_series(one, ticker)
+            if cfg.get("synthetic_hours"):
+                series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
+            closes[ticker] = series
+            print(f"{label}: recovered {ticker} on individual retry")
+        except Exception as exc:
+            print(f"{label} individual retry failed {ticker}: {exc}")
 
     if MARKET_BENCHMARK not in closes:
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
@@ -420,6 +436,8 @@ def main() -> None:
         "method": "EdgeRater-calibrated normalized public RRG approximation; not proprietary JdK indicators",
         "price_basis": "raw close",
         "data_source": "Yahoo Finance via yfinance",
+        "stock_universe_note": "Curated liquid stock drilldown list; not an automatically synchronized ETF holdings file.",
+        "stock_universe_reviewed": "2026-10-11",
         "validation": {
             "reference_date": "2026-10-09",
             "sector_quadrants_matched": "11/11",

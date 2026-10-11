@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import hashlib
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -7,6 +8,10 @@ import pandas as pd
 AUDIT = Path("data/rrg-audit.json")
 OUT = Path("data/rrg-validation.json")
 REFERENCE_DATE = pd.Timestamp("2026-10-09", tz="UTC")
+# Frozen canonical SHA-256 of the Yahoo raw-close calibration history used
+# for the 2026-10-09 EdgeRater reference. If Yahoo revises that history,
+# fail visibly instead of silently moving the validation baseline.
+REFERENCE_PRICE_HASH = "edcef29dadeab0224b414342734228a59fa062671a34d0b0c51ae4ffff11f5f7"
 
 EXACT = {
     "XLK": (101.300, 99.300),
@@ -87,6 +92,15 @@ def quadrant(x,y):
     if x<100 and y>=100:return "Improving"
     return "Lagging"
 
+def calibration_price_hash():
+    p=json.loads(AUDIT.read_text())
+    cutoff=REFERENCE_DATE.date().isoformat()
+    frozen={}
+    for t,rows in p["prices"].items():
+        frozen[t]=[r for r in rows if str(r["time"])[:10] <= cutoff]
+    blob=json.dumps(frozen,sort_keys=True,separators=(",",":")).encode()
+    return hashlib.sha256(blob).hexdigest()
+
 def load_prices():
     p=json.loads(AUDIT.read_text())
     out={}
@@ -122,6 +136,14 @@ def score(name,fn,prices):
     }
 
 def main():
+    price_hash=calibration_price_hash()
+    if price_hash != REFERENCE_PRICE_HASH:
+        raise SystemExit(
+            "RRG validation FAILED: calibration price history changed "
+            f"(expected {REFERENCE_PRICE_HASH}, got {price_hash}). "
+            "Review Yahoo historical revisions before accepting a new baseline."
+        )
+    print(f"Calibration price history hash OK: {price_hash}")
     prices=load_prices()
     candidates=[
         ("LIVE normalized WMA 10/16/5/4",lambda a,b:normalized(a,b,10,16,5,4)),

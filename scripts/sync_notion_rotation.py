@@ -1,5 +1,8 @@
 import os
 import time
+import threading
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import numpy as np
@@ -62,6 +65,30 @@ WINDOW_SAMPLES = {
 ALL_SECTORS = [t for members in SECTOR_GROUPS.values() for t in members]
 ALL_INDUSTRIES = [t for members in INDUSTRY_GROUPS.values() for t in members]
 ALL_TICKERS = sorted(set(["SPY", *ALL_SECTORS, *ALL_INDUSTRIES]))
+
+# Notion documents an average integration limit of about 3 requests/second.
+# This shared limiter lets network latency overlap without bursting far above it.
+class WriteRateLimiter:
+    def __init__(self, max_calls=3, period=1.05):
+        self.max_calls = max_calls
+        self.period = period
+        self.calls = deque()
+        self.lock = threading.Lock()
+
+    def acquire(self):
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                while self.calls and now - self.calls[0] >= self.period:
+                    self.calls.popleft()
+                if len(self.calls) < self.max_calls:
+                    self.calls.append(now)
+                    return
+                wait_for = self.period - (now - self.calls[0]) + 0.01
+            time.sleep(max(wait_for, 0.01))
+
+
+WRITE_LIMITER = WriteRateLimiter()
 
 
 def notion_headers(token):
@@ -169,6 +196,7 @@ def prop_date(value):
 
 
 def create_page(data_source_id, properties, token):
+    WRITE_LIMITER.acquire()
     payload = {
         "parent": {"type": "data_source_id", "data_source_id": data_source_id},
         "properties": properties,
@@ -177,6 +205,7 @@ def create_page(data_source_id, properties, token):
 
 
 def update_page(page_id, properties, token):
+    WRITE_LIMITER.acquire()
     payload = {"properties": properties}
     return notion_request(
         "PATCH", f"https://api.notion.com/v1/pages/{page_id}", token, json=payload
@@ -418,8 +447,8 @@ def build_signal_rows(closes):
     return raw
 
 
-def chart_properties(row):
-    return {
+def chart_properties(row, include_updated=False):
+    props = {
         "Series": prop_title(row["key"]),
         "Date": prop_date(row["date"]),
         "Ticker": prop_select(row["ticker"]),
@@ -429,8 +458,55 @@ def chart_properties(row):
         "Window": prop_select(row["window"]),
         "Relative Performance %": prop_number(row["value"]),
         "Benchmark": prop_select(row["benchmark"]),
-        "Updated": prop_date(row["updated"]),
     }
+    if include_updated:
+        props["Updated"] = prop_date(row["updated"])
+    return props
+
+
+def page_select(page, name):
+    value = page.get("properties", {}).get(name, {}).get("select")
+    return value.get("name") if value else None
+
+
+def page_multi(page, name):
+    values = page.get("properties", {}).get(name, {}).get("multi_select", [])
+    return sorted(v.get("name") for v in values if v.get("name"))
+
+
+def page_number(page, name):
+    return page.get("properties", {}).get(name, {}).get("number")
+
+
+def page_date(page, name):
+    value = page.get("properties", {}).get(name, {}).get("date")
+    return value.get("start") if value else None
+
+
+def numbers_close(a, b, tol=1e-10):
+    if a is None or b is None:
+        return a is None and b is None
+    return abs(float(a) - float(b)) <= tol
+
+
+def chart_page_matches(page, row):
+    return (
+        page_date(page, "Date") == row["date"]
+        and page_select(page, "Ticker") == row["ticker"]
+        and page_select(page, "Universe") == row["universe"]
+        and page_select(page, "Group") == row["group"]
+        and page_multi(page, "Lens") == sorted(row["lens"])
+        and page_select(page, "Window") == row["window"]
+        and page_select(page, "Benchmark") == row["benchmark"]
+        and numbers_close(page_number(page, "Relative Performance %"), row["value"])
+    )
+
+
+def chart_page_inactive(page):
+    return (
+        page_date(page, "Date") is None
+        and page_number(page, "Relative Performance %") is None
+    )
 
 
 def signal_properties(row):
@@ -457,46 +533,89 @@ def signal_properties(row):
 
 def upsert_chart(rows, token):
     existing_pages = query_all_pages(CHART_DATA_SOURCE_ID, token)
-    existing = {extract_title(p, "Series"): p for p in existing_pages if extract_title(p, "Series")}
+    existing = {
+        extract_title(p, "Series"): p
+        for p in existing_pages
+        if extract_title(p, "Series")
+    }
     target_keys = {r["key"] for r in rows}
 
-    created = updated = deactivated = 0
+    work = []
+    skipped = 0
     for row in rows:
-        props = chart_properties(row)
         page = existing.get(row["key"])
-        if page:
-            update_page(page["id"], props, token)
-            updated += 1
+        if page and chart_page_matches(page, row):
+            skipped += 1
+        elif page:
+            work.append(("update", page["id"], chart_properties(row, include_updated=False)))
         else:
-            create_page(CHART_DATA_SOURCE_ID, props, token)
-            created += 1
-        time.sleep(0.34)
+            work.append(("create", None, chart_properties(row, include_updated=True)))
 
-    # Deactivate prototype rows and any no-longer-used slots without deleting anything.
     for key, page in existing.items():
-        if key not in target_keys:
-            deactivate_chart_page(page["id"], token)
-            deactivated += 1
-            time.sleep(0.34)
+        if key not in target_keys and not chart_page_inactive(page):
+            work.append(("deactivate", page["id"], None))
 
-    print(f"Chart sync: created={created}, updated={updated}, deactivated={deactivated}")
+    created = updated = deactivated = 0
+
+    def worker(item):
+        action, page_id, props = item
+        if action == "create":
+            create_page(CHART_DATA_SOURCE_ID, props, token)
+        elif action == "update":
+            update_page(page_id, props, token)
+        else:
+            deactivate_chart_page(page_id, token)
+        return action
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(worker, item) for item in work]
+        for future in as_completed(futures):
+            action = future.result()
+            if action == "create":
+                created += 1
+            elif action == "update":
+                updated += 1
+            else:
+                deactivated += 1
+
+    print(
+        f"Chart sync: created={created}, updated={updated}, "
+        f"deactivated={deactivated}, unchanged={skipped}"
+    )
 
 
 def upsert_signals(rows, token):
     existing_pages = query_all_pages(SIGNAL_DATA_SOURCE_ID, token)
-    existing = {extract_title(p, "Ticker"): p for p in existing_pages if extract_title(p, "Ticker")}
+    existing = {
+        extract_title(p, "Ticker"): p
+        for p in existing_pages
+        if extract_title(p, "Ticker")
+    }
 
-    created = updated = 0
+    work = []
     for row in rows:
         props = signal_properties(row)
         page = existing.get(row["ticker"])
-        if page:
-            update_page(page["id"], props, token)
-            updated += 1
-        else:
+        work.append(("update", page["id"], props) if page else ("create", None, props))
+
+    created = updated = 0
+
+    def worker(item):
+        action, page_id, props = item
+        if action == "create":
             create_page(SIGNAL_DATA_SOURCE_ID, props, token)
-            created += 1
-        time.sleep(0.34)
+        else:
+            update_page(page_id, props, token)
+        return action
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(worker, item) for item in work]
+        for future in as_completed(futures):
+            action = future.result()
+            if action == "create":
+                created += 1
+            else:
+                updated += 1
 
     print(f"Signal sync: created={created}, updated={updated}")
 
@@ -536,8 +655,10 @@ def main():
         f"for close {closes['SPY'].index[-1]}"
     )
 
-    upsert_chart(chart_rows, token)
+    # Update the actionable signal layer first so the Radar/State Map refreshes
+    # within seconds even while the heavier chart sync continues.
     upsert_signals(signal_rows, token)
+    upsert_chart(chart_rows, token)
     print("Notion rotation sync completed")
 
 

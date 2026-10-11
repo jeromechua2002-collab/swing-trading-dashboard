@@ -43,6 +43,9 @@ jobs:
       - name: Validate RRG against EdgeRater benchmark
         run: python scripts/validate_rrg.py
 
+      - name: Assess RRG parameter sensitivity
+        run: python scripts/rrg_sensitivity.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

@@ -1,6 +1,11 @@
 name: Sync Notion rotation model
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/notion-rotation.yml"
+      - "scripts/sync_notion_rotation.py"
   workflow_dispatch:
   schedule:
     # 22:15 UTC is after the U.S. cash close in both EDT and EST.

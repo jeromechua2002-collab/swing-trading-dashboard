@@ -28,7 +28,7 @@ INDUSTRY_GROUPS = {
 STOCK_GROUPS = {
     "XLK": ["NVDA", "AAPL", "MSFT", "AVGO", "ORCL", "AMD", "CSCO", "IBM", "INTC", "QCOM", "CRM", "ADBE"],
     "XLY": ["AMZN", "TSLA", "HD", "MCD", "BKNG", "LOW", "TJX", "NKE", "SBUX", "ORLY"],
-    "XLC": ["META", "GOOGL", "NFLX", "TMUS", "DIS", "T", "VZ", "EA", "TTWO", "CHTR"],
+    "XLC": ["META", "GOOGL", "NFLX", "TMUS", "DIS", "T", "VZ", "APP", "TTWO", "CHTR"],
     "XLF": ["BRK-B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "AXP", "C"],
     "XLI": ["GE", "CAT", "RTX", "UBER", "DE", "HON", "UNP", "ETN", "UPS", "BA"],
     "XLB": ["LIN", "SHW", "APD", "FCX", "ECL", "NEM", "NUE", "DOW", "MLM", "VMC"],
@@ -197,7 +197,7 @@ def validate_timeframe_output(label: str, closes: dict, sectors: dict, industrie
             errors.append("SPY close series is empty")
         else:
             latest = bench.index[-1]
-            for ticker in CORE_TICKERS:
+            for ticker in [*CORE_TICKERS, *EXPECTED_STOCKS]:
                 if ticker not in closes:
                     continue
                 s = closes[ticker].dropna().sort_index()

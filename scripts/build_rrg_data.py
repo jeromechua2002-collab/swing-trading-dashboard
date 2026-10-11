@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -170,15 +171,27 @@ def benchmark_payload(s: pd.Series, points: int = 80) -> list[dict]:
 
 
 def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
-    return yf.download(
-        tickers=tickers,
-        period=cfg["period"],
-        interval=cfg["interval"],
-        auto_adjust=False,
-        progress=False,
-        threads=True,
-        group_by="ticker",
-    )
+    last_exc = None
+    for attempt in range(1, 4):
+        try:
+            data = yf.download(
+                tickers=tickers,
+                period=cfg["period"],
+                interval=cfg["interval"],
+                auto_adjust=False,
+                progress=False,
+                threads=True,
+                group_by="ticker",
+            )
+            if data is not None and not data.empty:
+                return data
+            last_exc = RuntimeError("Yahoo returned an empty dataframe")
+        except Exception as exc:
+            last_exc = exc
+        if attempt < 3:
+            print(f"Yahoo download attempt {attempt}/3 failed; retrying in {attempt * 2}s")
+            time.sleep(attempt * 2)
+    raise RuntimeError(f"Yahoo download failed after 3 attempts: {last_exc}")
 
 
 def validate_timeframe_output(label: str, closes: dict, sectors: dict, industries: dict, stocks: dict) -> None:

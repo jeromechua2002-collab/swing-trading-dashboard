@@ -146,18 +146,35 @@ def probe_notion_access(token):
             ) from exc
 
 
-def latest_signal_updated_date(token):
-    url = f"https://api.notion.com/v1/data_sources/{SIGNAL_DATA_SOURCE_ID}/query"
-    payload = {
-        "page_size": 1,
-        "sorts": [{"property": "Updated", "direction": "descending"}],
+def signal_snapshot_status(token):
+    pages = query_all_pages(SIGNAL_DATA_SOURCE_ID, token)
+    expected = set([*ALL_SECTORS, *ALL_INDUSTRIES])
+    seen = {}
+    duplicates = set()
+
+    for page in pages:
+        ticker = extract_title(page, "Ticker")
+        if not ticker:
+            continue
+        if ticker in seen:
+            duplicates.add(ticker)
+        seen[ticker] = page_date(page, "Updated")
+
+    present = set(seen)
+    missing = sorted(expected - present)
+    extra = sorted(present - expected)
+    dates = {seen[t] for t in expected if t in seen}
+    complete = not missing and not extra and not duplicates and len(present) == len(expected)
+
+    return {
+        "complete": complete,
+        "missing": missing,
+        "extra": extra,
+        "duplicates": sorted(duplicates),
+        "dates": sorted(d for d in dates if d is not None),
+        "all_same_date": complete and len(dates) == 1 and None not in dates,
+        "date": next(iter(dates)) if complete and len(dates) == 1 else None,
     }
-    data = notion_request("POST", url, token, json=payload)
-    results = data.get("results", [])
-    if not results:
-        return None
-    value = results[0].get("properties", {}).get("Updated", {}).get("date")
-    return value.get("start") if value else None
 
 
 def latest_spy_close_date():
@@ -267,6 +284,44 @@ def close_series(downloaded, ticker):
     if ticker == "SPY" and "Close" in downloaded.columns:
         return downloaded["Close"].dropna()
     raise KeyError(f"Close data unavailable for {ticker}")
+
+
+def validate_market_data(closes):
+    expected = set(ALL_TICKERS)
+    present = set(closes)
+    missing = sorted(expected - present)
+    if missing:
+        raise RuntimeError(f"Market data incomplete; missing tickers: {', '.join(missing)}")
+
+    spy = closes["SPY"].replace([np.inf, -np.inf], np.nan).dropna()
+    if len(spy) < 252:
+        raise RuntimeError(f"SPY history too short: {len(spy)} observations")
+    asof = spy.index[-1]
+    errors = []
+
+    for ticker in ALL_TICKERS:
+        s = closes[ticker].replace([np.inf, -np.inf], np.nan).dropna()
+        if len(s) < 252:
+            errors.append(f"{ticker}: only {len(s)} observations")
+            continue
+        if not s.index.is_monotonic_increasing:
+            errors.append(f"{ticker}: dates not monotonic")
+        if s.index.has_duplicates:
+            errors.append(f"{ticker}: duplicate dates")
+        if (s <= 0).any():
+            errors.append(f"{ticker}: non-positive close")
+        if s.index[-1] != asof:
+            errors.append(
+                f"{ticker}: latest close {s.index[-1].date()} != SPY {asof.date()}"
+            )
+
+    if errors:
+        raise RuntimeError("Market data validation failed: " + "; ".join(errors))
+
+    print(
+        f"Market data validation OK: {len(ALL_TICKERS)} tickers, "
+        f"latest close {asof.date()}, >=252 observations each"
+    )
 
 
 def align(asset, benchmark):
@@ -658,11 +713,21 @@ def main():
 
     force_sync = os.getenv("FORCE_SYNC", "0") == "1"
     if not force_sync:
-        notion_date = latest_signal_updated_date(token)
+        snapshot = signal_snapshot_status(token)
         spy_date = latest_spy_close_date()
-        print(f"Freshness check: Notion={notion_date}, SPY={spy_date}")
-        if notion_date == spy_date:
-            print("No new U.S. market close; skipping full rotation sync.")
+        print(
+            f"Freshness check: snapshot_complete={snapshot['complete']}, "
+            f"all_same_date={snapshot['all_same_date']}, "
+            f"Notion={snapshot['date']}, SPY={spy_date}"
+        )
+        if snapshot["missing"] or snapshot["duplicates"] or snapshot["extra"]:
+            print(
+                "Snapshot integrity issue: "
+                f"missing={snapshot['missing']}, "
+                f"duplicates={snapshot['duplicates']}, extra={snapshot['extra']}"
+            )
+        if snapshot["all_same_date"] and snapshot["date"] == spy_date:
+            print("No new U.S. market close and snapshot is complete; skipping full sync.")
             return
 
     downloaded = yf.download(
@@ -685,8 +750,25 @@ def main():
     if "SPY" not in closes:
         raise RuntimeError("SPY close data unavailable")
 
+    validate_market_data(closes)
+
     chart_rows = build_chart_rows(closes)
     signal_rows = build_signal_rows(closes)
+
+    if len(signal_rows) != len(ALL_SECTORS) + len(ALL_INDUSTRIES):
+        raise RuntimeError(
+            f"Signal row count mismatch: got {len(signal_rows)}, "
+            f"expected {len(ALL_SECTORS) + len(ALL_INDUSTRIES)}"
+        )
+
+    expected_chart_rows = sum(WINDOW_SAMPLES.values()) * (
+        len(ALL_SECTORS) + len(ALL_INDUSTRIES)
+    )
+    if len(chart_rows) != expected_chart_rows:
+        raise RuntimeError(
+            f"Chart row count mismatch: got {len(chart_rows)}, "
+            f"expected {expected_chart_rows}"
+        )
 
     print(
         f"Prepared {len(chart_rows)} chart rows and {len(signal_rows)} signal rows "

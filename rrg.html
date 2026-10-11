@@ -527,7 +527,13 @@ function renderHealth(){
   const tfh=payload.health||{};
   const expectedIndustries=Object.values(payload.universes.industries||{}).flat().length;
   const active=tfh[tf]||{};
-  const coverageOk=(active.sector_coverage===11 && active.industry_coverage===expectedIndustries);
+  const expectedStocks=112;
+  const coverageOk=(
+    active.sector_coverage===11 &&
+    active.industry_coverage===expectedIndustries &&
+    active.stock_coverage===expectedStocks &&
+    active.complete===true
+  );
   const fresh=ageH<=2.5 || weekend;
   const status=(coverageOk&&fresh)?"Healthy ✅":"Check feed ⚠️";
   const barRows=["1W","1D","4H","1H"].map(k=>{
@@ -546,7 +552,11 @@ function renderHealth(){
     "Build age: "+ageH.toFixed(1)+" h<br>"+
     "Coverage: "+(active.sector_coverage||0)+"/11 sectors · "+
       (active.industry_coverage||0)+"/"+expectedIndustries+" industries · "+
-      (active.stock_coverage||0)+" stocks<br><br>"+
+      (active.stock_coverage||0)+"/"+expectedStocks+" stocks<br>"+
+    ((tf==="4H")?"<span style='color:#d9b45a'>4H note: synthetic bars aggregated from Yahoo 1H data.</span><br>":"")+
+    ((tf==="1H"||tf==="4H")?"<span style='color:#9fb0c2'>Intraday heads can move until the bar/session closes.</span><br>":"")+
+    ((tf==="1D"||tf==="1W")?"<span style='color:#9fb0c2'>During U.S. market hours, the latest daily/weekly bar may still be forming.</span><br>":"")+
+    "<br>"+
     "<strong>Latest benchmark bars</strong><br>"+barRows+
     "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants."+valText;
 }

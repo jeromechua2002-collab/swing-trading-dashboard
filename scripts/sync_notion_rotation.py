@@ -146,6 +146,35 @@ def probe_notion_access(token):
             ) from exc
 
 
+def latest_signal_updated_date(token):
+    url = f"https://api.notion.com/v1/data_sources/{SIGNAL_DATA_SOURCE_ID}/query"
+    payload = {
+        "page_size": 1,
+        "sorts": [{"property": "Updated", "direction": "descending"}],
+    }
+    data = notion_request("POST", url, token, json=payload)
+    results = data.get("results", [])
+    if not results:
+        return None
+    value = results[0].get("properties", {}).get("Updated", {}).get("date")
+    return value.get("start") if value else None
+
+
+def latest_spy_close_date():
+    spy = yf.download(
+        tickers=["SPY"],
+        period="10d",
+        interval="1d",
+        auto_adjust=False,
+        progress=False,
+        threads=False,
+    )
+    series = close_series(spy, "SPY")
+    if series.empty:
+        raise RuntimeError("Unable to determine latest SPY close date")
+    return series.index[-1].date().isoformat()
+
+
 def query_all_pages(data_source_id, token):
     url = f"https://api.notion.com/v1/data_sources/{data_source_id}/query"
     results = []
@@ -626,6 +655,15 @@ def main():
         raise RuntimeError("NOTION_TOKEN is required")
 
     probe_notion_access(token)
+
+    force_sync = os.getenv("FORCE_SYNC", "0") == "1"
+    if not force_sync:
+        notion_date = latest_signal_updated_date(token)
+        spy_date = latest_spy_close_date()
+        print(f"Freshness check: Notion={notion_date}, SPY={spy_date}")
+        if notion_date == spy_date:
+            print("No new U.S. market close; skipping full rotation sync.")
+            return
 
     downloaded = yf.download(
         tickers=ALL_TICKERS,

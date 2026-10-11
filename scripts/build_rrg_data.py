@@ -54,6 +54,11 @@ MOMENTUM_WMA = 4
 NORMALIZE_SCALE = 1.0
 TAIL_POINTS = 16
 
+EXPECTED_SECTORS = sorted({t for group in SECTOR_GROUPS.values() for t in group})
+EXPECTED_INDUSTRIES = sorted({t for group in INDUSTRY_GROUPS.values() for t in group})
+EXPECTED_STOCKS = sorted({t for members in STOCK_GROUPS.values() for t in members})
+CORE_TICKERS = [MARKET_BENCHMARK, *EXPECTED_SECTORS, *EXPECTED_INDUSTRIES]
+
 
 def rolling_zscore(s: pd.Series, window: int) -> pd.Series:
     mean = s.rolling(window, min_periods=window).mean()
@@ -176,6 +181,89 @@ def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
     )
 
 
+def validate_timeframe_output(label: str, closes: dict, sectors: dict, industries: dict, stocks: dict) -> None:
+    missing_core = sorted(set(CORE_TICKERS) - set(closes))
+    missing_stocks = sorted(set(EXPECTED_STOCKS) - set(closes))
+    errors = []
+
+    if missing_core:
+        errors.append("missing core closes: " + ", ".join(missing_core))
+    if missing_stocks:
+        errors.append("missing stock closes: " + ", ".join(missing_stocks))
+
+    if MARKET_BENCHMARK in closes:
+        bench = closes[MARKET_BENCHMARK].dropna().sort_index()
+        if bench.empty:
+            errors.append("SPY close series is empty")
+        else:
+            latest = bench.index[-1]
+            for ticker in CORE_TICKERS:
+                if ticker not in closes:
+                    continue
+                s = closes[ticker].dropna().sort_index()
+                if s.empty:
+                    errors.append(f"{ticker}: empty close series")
+                elif s.index[-1] != latest:
+                    errors.append(
+                        f"{ticker}: latest bar {s.index[-1]} != SPY {latest}"
+                    )
+
+    if set(sectors) != set(EXPECTED_SECTORS):
+        errors.append(
+            f"sector coverage {len(sectors)}/{len(EXPECTED_SECTORS)}"
+        )
+    if set(industries) != set(EXPECTED_INDUSTRIES):
+        errors.append(
+            f"industry coverage {len(industries)}/{len(EXPECTED_INDUSTRIES)}"
+        )
+
+    for ticker, trail in sectors.items():
+        if len(trail) != TAIL_POINTS:
+            errors.append(f"{ticker}: sector tail has {len(trail)}/{TAIL_POINTS} points")
+    for ticker, trail in industries.items():
+        if len(trail) != TAIL_POINTS:
+            errors.append(f"{ticker}: industry tail has {len(trail)}/{TAIL_POINTS} points")
+
+    stock_seen = set()
+    for sector, members in STOCK_GROUPS.items():
+        block = stocks.get(sector, {})
+        vs_spy = block.get("vs_SPY", {})
+        vs_sector = block.get(f"vs_{sector}", {})
+        expected = set(members)
+        stock_seen.update(vs_spy)
+        if set(vs_spy) != expected:
+            errors.append(
+                f"{sector}: stock vs SPY coverage {len(vs_spy)}/{len(expected)}"
+            )
+        if set(vs_sector) != expected:
+            errors.append(
+                f"{sector}: stock vs sector coverage {len(vs_sector)}/{len(expected)}"
+            )
+        for ticker in expected:
+            if ticker in vs_spy and len(vs_spy[ticker]) != TAIL_POINTS:
+                errors.append(
+                    f"{ticker}: vs SPY tail has {len(vs_spy[ticker])}/{TAIL_POINTS} points"
+                )
+            if ticker in vs_sector and len(vs_sector[ticker]) != TAIL_POINTS:
+                errors.append(
+                    f"{ticker}: vs {sector} tail has {len(vs_sector[ticker])}/{TAIL_POINTS} points"
+                )
+
+    if stock_seen != set(EXPECTED_STOCKS):
+        errors.append(
+            f"stock coverage {len(stock_seen)}/{len(EXPECTED_STOCKS)}"
+        )
+
+    if errors:
+        raise RuntimeError(f"{label} RRG integrity check failed: " + "; ".join(errors))
+
+    print(
+        f"{label} integrity OK: sectors={len(sectors)}/{len(EXPECTED_SECTORS)}, "
+        f"industries={len(industries)}/{len(EXPECTED_INDUSTRIES)}, "
+        f"stocks={len(stock_seen)}/{len(EXPECTED_STOCKS)}, tails={TAIL_POINTS}"
+    )
+
+
 def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     data = download_prices(tickers, cfg)
     closes = {}
@@ -231,6 +319,8 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
             f"vs_{sector}": vs_sector,
             "sector_price": benchmark_payload(sector_bench) if sector_bench is not None else [],
         }
+
+    validate_timeframe_output(label, closes, sectors, industries, stocks)
 
     return {
         "sectors": sectors,
@@ -289,13 +379,24 @@ def main() -> None:
         bp = block.get("benchmark_price", [])
         if bp:
             latest_bar = bp[-1]["time"]
+        sector_cov = len(block.get("sectors", {}))
+        industry_cov = len(block.get("industries", {}))
+        stock_cov = sum(
+            len(v.get("vs_SPY", {}))
+            for v in block.get("stocks", {}).values()
+        )
         health[tf] = {
             "latest_bar": latest_bar,
-            "sector_coverage": len(block.get("sectors", {})),
-            "industry_coverage": len(block.get("industries", {})),
-            "stock_coverage": sum(
-                len(v.get("vs_SPY", {}))
-                for v in block.get("stocks", {}).values()
+            "sector_coverage": sector_cov,
+            "sector_expected": len(EXPECTED_SECTORS),
+            "industry_coverage": industry_cov,
+            "industry_expected": len(EXPECTED_INDUSTRIES),
+            "stock_coverage": stock_cov,
+            "stock_expected": len(EXPECTED_STOCKS),
+            "complete": (
+                sector_cov == len(EXPECTED_SECTORS)
+                and industry_cov == len(EXPECTED_INDUSTRIES)
+                and stock_cov == len(EXPECTED_STOCKS)
             ),
         }
 

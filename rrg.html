@@ -173,6 +173,7 @@ let benchmark="SPY";
 let payload=null;
 let stockPayload=null;
 let validationReport=null;
+let sensitivityReport=null;
 const selected=new Set();
 const svg=document.getElementById("rrg");
 const benchSvg=document.getElementById("benchmarkChart");
@@ -545,6 +546,9 @@ function renderHealth(){
   const valText=liveVal
     ? "<br><br><strong>Regression benchmark</strong><br>"+liveVal.quadrant_matches+"/"+liveVal.quadrant_total+" quadrants · coordinate MAE "+Number(liveVal.approx_coordinate_mae).toFixed(3)+" · exact-tooltip MAE "+Number(liveVal.exact_tooltip_mae).toFixed(3)
     : "";
+  const sensText=sensitivityReport
+    ? "<br><br><strong>Parameter sensitivity</strong><br>Live formula rank "+sensitivityReport.live_rank+"/"+sensitivityReport.tested_formulas+" · "+sensitivityReport.passing_formulas+" nearby formulas also pass this single-date benchmark.<br><span style='color:#9fb0c2'>Interpretation: strong fit, but the exact proprietary parameters are not uniquely identified yet.</span>"
+    : "";
   box.innerHTML="<strong>"+status+"</strong><br>"+
     "Source: Yahoo Finance / yfinance<br>"+
     "Price basis: raw close<br>"+
@@ -558,7 +562,7 @@ function renderHealth(){
     ((tf==="1D"||tf==="1W")?"<span style='color:#9fb0c2'>During U.S. market hours, the latest daily/weekly bar may still be forming.</span><br>":"")+
     "<br>"+
     "<strong>Latest benchmark bars</strong><br>"+barRows+
-    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants."+valText;
+    "<br><br><strong>Calibration</strong><br>EdgeRater 9 Oct reference: 11/11 sector quadrants, 15/16 industry quadrants."+valText+sensText;
 }
 function fullRender(){
   setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();
@@ -591,13 +595,15 @@ async function loadStockSector(sector){
 }
 async function boot(){
   const stamp=Date.now();
-  const [r,v]=await Promise.all([
+  const [r,v,s]=await Promise.all([
     fetch("data/rrg-core.json?"+stamp),
-    fetch("data/rrg-validation.json?"+stamp)
+    fetch("data/rrg-validation.json?"+stamp),
+    fetch("data/rrg-sensitivity.json?"+stamp)
   ]);
   if(!r.ok) throw new Error("RRG core data unavailable");
   payload=await r.json();
   if(v.ok) validationReport=await v.json();
+  if(s.ok) sensitivityReport=await s.json();
   if(mode==="stocks"){
     const valid=(payload.universes.stock_sectors||[]);
     if(!valid.includes(stockSector)) stockSector="XLK";

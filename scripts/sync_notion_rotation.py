@@ -83,11 +83,40 @@ def notion_request(method, url, token, **kwargs):
         if 500 <= resp.status_code < 600:
             time.sleep(min(2 ** attempt, 20))
             continue
-        resp.raise_for_status()
+        if not resp.ok:
+            body = resp.text[:1200]
+            raise RuntimeError(
+                f"Notion API {resp.status_code} for {method} {url}: {body}"
+            )
         if resp.content:
             return resp.json()
         return {}
     raise RuntimeError(f"Notion request failed after retries: {method} {url}")
+
+
+def probe_notion_access(token):
+    me = notion_request("GET", "https://api.notion.com/v1/users/me", token)
+    print(
+        "Notion token valid for integration:",
+        me.get("name") or me.get("id") or "unknown"
+    )
+    for label, data_source_id in [
+        ("Rotation Chart Data v2", CHART_DATA_SOURCE_ID),
+        ("Rotation Signal Snapshot", SIGNAL_DATA_SOURCE_ID),
+    ]:
+        try:
+            ds = notion_request(
+                "GET",
+                f"https://api.notion.com/v1/data_sources/{data_source_id}",
+                token,
+            )
+            print(f"Access OK: {label} -> {ds.get('id', data_source_id)}")
+        except Exception as exc:
+            raise RuntimeError(
+                f"Notion integration cannot access '{label}' "
+                f"(data source {data_source_id}). Open that exact database in Notion "
+                f"and add the integration under ••• > Connections. Details: {exc}"
+            ) from exc
 
 
 def query_all_pages(data_source_id, token):
@@ -476,6 +505,8 @@ def main():
     token = os.environ.get("NOTION_TOKEN")
     if not token:
         raise RuntimeError("NOTION_TOKEN is required")
+
+    probe_notion_access(token)
 
     downloaded = yf.download(
         tickers=ALL_TICKERS,

@@ -46,6 +46,11 @@ jobs:
       - name: Assess RRG parameter sensitivity
         run: python scripts/rrg_sensitivity.py
 
+      - name: Sync swing journal equity and P/L calendar
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python scripts/sync_journal_performance.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

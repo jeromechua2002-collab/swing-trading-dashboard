@@ -65,6 +65,8 @@ body{overflow-x:hidden}
   <nav class="rrg-tabs">
     <a id="tabSectors" href="rrg.html?mode=sectors">Sector RRG</a>
     <a id="tabIndustries" href="rrg.html?mode=industries">Industry RRG</a>
+    <a id="tabEqual" href="rrg.html?mode=equal">Equal Weight · Test</a>
+    <a href="sector-breadth.html">Sector Breadth Lab</a>
     <a id="tabStocks" href="rrg.html?mode=stocks&sector=XLK">Stock RRG</a>
   </nav>
 </div></header>
@@ -164,7 +166,7 @@ body{overflow-x:hidden}
 <script>
 const Q=new URLSearchParams(location.search);
 let mode=Q.get("mode") || (Q.get("universe")==="industries"?"industries":"sectors");
-if(!["sectors","industries","stocks"].includes(mode)) mode="sectors";
+if(!["sectors","industries","stocks","equal"].includes(mode)) mode="sectors";
 let stockSector=Q.get("sector") || "XLK";
 let tf="1D";
 let trail=8;
@@ -172,6 +174,7 @@ let viewportMode="focus";
 let benchmark="SPY";
 let payload=null;
 let stockPayload=null;
+let breadthPayload=null;
 let validationReport=null;
 let sensitivityReport=null;
 const selected=new Set();
@@ -219,6 +222,7 @@ function allSectorTickers(){return Object.values(payload.universes.sectors).flat
 function allIndustryTickers(){return Object.values(payload.universes.industries).flat()}
 function stockTickers(){return (stockPayload&&stockPayload.members)||[]}
 function symbolOrder(){
+  if(mode==="equal")return Object.values(breadthPayload.groups).flat();
   if(mode==="sectors")return allSectorTickers();
   if(mode==="industries")return allIndustryTickers();
   return stockTickers();
@@ -229,6 +233,7 @@ function symbolColor(t){
   return SYMBOL_COLORS[i%SYMBOL_COLORS.length];
 }
 function dataBlock(){
+  if(mode==="equal")return breadthPayload.rrg["equal_vs_"+benchmark]||{};
   const b=payload.timeframes[tf];
   if(mode==="sectors") return b.sectors||{};
   if(mode==="industries") return b.industries||{};
@@ -237,11 +242,13 @@ function dataBlock(){
   return benchmark==="SPY"?(stock.vs_SPY||{}):(stock["vs_"+stockSector]||{});
 }
 function groups(){
+  if(mode==="equal")return breadthPayload.groups;
   if(mode==="sectors") return payload.universes.sectors;
   if(mode==="industries") return payload.universes.industries;
   return {[stockSector+" constituents"]:stockTickers()};
 }
 function currentBenchmarkPrice(){
+  if(mode==="equal")return breadthPayload.benchmarks[benchmark]||[];
   if(mode==="stocks"){
     const s=(((stockPayload||{}).timeframes||{})[tf]||{});
     if(benchmark===stockSector) return ((s.stock||{}).sector_price)||[];
@@ -251,6 +258,7 @@ function currentBenchmarkPrice(){
 }
 function latest(t){const a=dataBlock()[t]||[];return a[a.length-1]}
 function setupNavigation(){
+  document.getElementById("tabEqual").classList.toggle("active",mode==="equal");
   document.getElementById("tabSectors").classList.toggle("active",mode==="sectors");
   document.getElementById("tabIndustries").classList.toggle("active",mode==="industries");
   document.getElementById("tabStocks").classList.toggle("active",mode==="stocks");
@@ -259,7 +267,12 @@ function setupNavigation(){
 function setupControls(){
   const sec=document.getElementById("sectorSelect");
   const bs=document.getElementById("benchmarkSelect");
-  if(mode==="stocks"){
+  if(mode==="equal"){
+    sec.style.display="none";
+    bs.innerHTML='<option value="SPY">Common benchmark: SPY</option><option value="RSP">Equal-weight market: RSP</option>';
+    bs.value=benchmark;
+    document.querySelectorAll("[data-tf]").forEach(b=>{b.disabled=b.dataset.tf!=="1D";b.title=b.disabled?"Equal-weight test uses completed daily sessions":""});
+  }else if(mode==="stocks"){
     sec.style.display="";
     sec.innerHTML=(payload.universes.stock_sectors||allSectorTickers()).map(t=>'<option value="'+t+'" '+(t===stockSector?"selected":"")+'>'+t+' stocks</option>').join("");
     bs.innerHTML='<option value="SPY">Benchmark: SPY</option><option value="'+stockSector+'">Benchmark: '+stockSector+'</option>';
@@ -272,7 +285,13 @@ function setupControls(){
   }
 }
 function setupText(){
-  if(mode==="sectors"){
+  if(mode==="equal"){
+    document.getElementById("pageTitle").textContent="Equal-weight Sector Rotation · Test";
+    document.getElementById("pageSub").textContent="11 Invesco equal-weight sector proxies. Completed daily sessions only. SPY gives a common reference; RSP shows rotation within the equal-weight market.";
+    document.getElementById("crumb").textContent="RRG / Equal Weight";
+    document.getElementById("symbolsTitle").textContent="Equal-weight sector ETFs";
+    document.getElementById("stockHint").textContent="Comparison: Sector Breadth Lab. RSPC and RSPG Plus indices can include mid-cap constituents. Equal-weight coordinates have no independent EdgeRater calibration yet.";
+  }else if(mode==="sectors"){
     document.getElementById("pageTitle").textContent="Sector Relative Rotation";
     document.getElementById("pageSub").textContent="11 S&P sector ETFs measured against SPY. Click any sector head to drill directly into its constituent-stock RRG.";
     document.getElementById("crumb").innerHTML="RRG / <strong>Sectors</strong>";
@@ -291,7 +310,7 @@ function setupText(){
     document.getElementById("stockHint").textContent="Curated drilldown list, not a live synchronized ETF holdings file. It is integrity-checked for fresh market data and reviewed separately for constituent changes.";
     document.getElementById("symbolsTitle").textContent=stockSector+" stocks";
   }
-  document.getElementById("plotTitle").textContent=(mode==="sectors"?"Sector":mode==="industries"?"Industry":"Stock")+" RRG · "+tf;
+  document.getElementById("plotTitle").textContent=(mode==="equal"?"Equal-weight Sector":mode==="sectors"?"Sector":mode==="industries"?"Industry":"Stock")+" RRG · "+tf;
   document.getElementById("plotMeta").textContent="Benchmark "+benchmark+" · centre = 100 / 100";
   document.getElementById("benchTitle").textContent="Benchmark · "+benchmark;
 }
@@ -465,7 +484,7 @@ function renderPlot(){
 }
 function renderSectorAnalytics(){
   const wrap=document.getElementById("sectorAnalytics");
-  if(mode==="stocks"){wrap.style.display="none";return}
+  if(mode==="stocks"||mode==="equal"){wrap.style.display="none";return}
   wrap.style.display="";
   const buddyCard=document.getElementById("buddyCard");
   buddyCard.style.display=mode==="sectors"?"":"none";
@@ -519,6 +538,10 @@ function renderSectorAnalytics(){
   shorts.slice(0,5).forEach(x=>lb.innerHTML+='<div class="rank-row"><strong>'+x[0]+'</strong><div class="rank-track"><div class="rank-fill short" style="width:'+Math.max(5,x[1]/max*100)+'%"></div></div><div class="rank-score">'+x[3]+' · '+x[2]+'</div></div>');
 }
 function renderHealth(){
+  if(mode==="equal"){
+    document.getElementById("healthBox").textContent="Experimental daily feed · 11/11 sector pairs · completed session "+breadthPayload.as_of+" · built "+new Date(breadthPayload.generated_at).toLocaleString()+". RRG raw closes; comparisons use adjusted closes. Equal-weight ETF strength is a participation proxy, not a count of advancing stocks.";
+    return;
+  }
   const box=document.getElementById("healthBox");
   if(!box||!payload)return;
   const generated=new Date(payload.generated_at);
@@ -569,7 +592,7 @@ function renderHealth(){
 }
 function fullRender(){
   setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();
-  document.getElementById("updated").textContent="Data "+new Date(payload.generated_at).toLocaleString();
+  document.getElementById("updated").textContent="Data "+new Date(mode==="equal"?breadthPayload.generated_at:payload.generated_at).toLocaleString();
 }
 document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=>{
   tf=b.dataset.tf;document.querySelectorAll("[data-tf]").forEach(x=>x.classList.toggle("active",x===b));
@@ -607,6 +630,12 @@ async function boot(){
   payload=await r.json();
   if(v.ok) validationReport=await v.json();
   if(s.ok) sensitivityReport=await s.json();
+  if(mode==="equal"){
+    const br=await fetch("data/sector-breadth.json?"+stamp);
+    if(!br.ok)throw new Error("Equal-weight comparison feed unavailable");
+    breadthPayload=await br.json();
+    if(breadthPayload.status!=="ok"||Date.now()-Date.parse(breadthPayload.generated_at)>72*3600000)throw new Error("Equal-weight feed incomplete or stale: "+(breadthPayload.errors||[]).join("; "));
+  }
   if(mode==="stocks"){
     const valid=(payload.universes.stock_sectors||[]);
     if(!valid.includes(stockSector)) stockSector="XLK";
@@ -618,7 +647,7 @@ async function boot(){
 }
 boot().catch(err=>{
   document.getElementById("updated").textContent="Data build unavailable";
-  document.getElementById("pageSub").textContent="The latest RRG data build could not be loaded.";
+  document.getElementById("pageSub").textContent="The latest RRG data build could not be loaded: "+err.message;
   console.error(err);
 });
 </script>

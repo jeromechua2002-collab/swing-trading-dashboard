@@ -310,6 +310,21 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     if MARKET_BENCHMARK not in closes:
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
 
+    # During the cash session Yahoo may deliver the newest partial intraday bar
+    # for SPY but not every ETF. Compare all instruments on the same completed
+    # common bar, rather than silently comparing different timestamps.
+    if label in ("1H", "4H"):
+        last = {t: v.dropna().index[-1] for t, v in closes.items() if not v.dropna().empty}
+        if last:
+            cutoff = min(last.values())
+            newest = max(last.values())
+            allowed = pd.Timedelta(hours=5 if label == "4H" else 2)
+            if newest - cutoff > allowed:
+                raise RuntimeError(f"{label}: recent bar freshness gap exceeds {allowed}: {newest} vs {cutoff}")
+            if cutoff != newest:
+                print(f"{label}: aligning {len(closes)} symbols to common timestamp {cutoff}; newest vendor bar {newest} was partial")
+            closes = {t: v.loc[v.index <= cutoff] for t, v in closes.items()}
+
     spy = closes[MARKET_BENCHMARK]
 
     sectors = {}

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import json
 import hashlib
+from datetime import datetime, timezone
+from frozen_rrg_calibration import CALIBRATION_PRICES, FROZEN_DATA, FROZEN_COMPACT_SHA256, REFERENCE_ORIGINAL_PRICE_HASH
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -11,7 +13,10 @@ REFERENCE_DATE = pd.Timestamp("2026-10-09", tz="UTC")
 # Frozen canonical SHA-256 of the Yahoo raw-close calibration history used
 # for the 2026-10-09 EdgeRater reference. If Yahoo revises that history,
 # fail visibly instead of silently moving the validation baseline.
-REFERENCE_PRICE_HASH = "edcef29dadeab0224b414342734228a59fa062671a34d0b0c51ae4ffff11f5f7"
+REFERENCE_PRICE_HASH = REFERENCE_ORIGINAL_PRICE_HASH
+REVIEW_OUT = Path("data/rrg-history-review.json")
+MATERIAL_RECENT_CHANGE_PCT = 2.0
+RECENT_REFERENCE_BARS = 10
 
 EXACT = {
     "XLK": (101.300, 99.300),
@@ -93,21 +98,70 @@ def quadrant(x,y):
     return "Lagging"
 
 def calibration_price_hash():
-    p=json.loads(AUDIT.read_text())
-    cutoff=REFERENCE_DATE.date().isoformat()
-    frozen={}
-    for t,rows in p["prices"].items():
-        frozen[t]=[r for r in rows if str(r["time"])[:10] <= cutoff]
-    blob=json.dumps(frozen,sort_keys=True,separators=(",",":")).encode()
-    return hashlib.sha256(blob).hexdigest()
+    raw = json.dumps(FROZEN_DATA, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(raw).hexdigest()
+
 
 def load_prices():
-    p=json.loads(AUDIT.read_text())
-    out={}
-    for t,rows in p["prices"].items():
-        s=pd.Series({pd.Timestamp(r["time"]):float(r["close"]) for r in rows},dtype=float).sort_index()
-        out[t]=s[s.index<=REFERENCE_DATE]
+    if calibration_price_hash() != FROZEN_COMPACT_SHA256:
+        raise SystemExit("RRG validation FAILED: immutable calibration fixture changed")
+    out = {}
+    for ticker, rows in CALIBRATION_PRICES.items():
+        series = pd.Series({pd.Timestamp(day, tz="UTC"): float(close) for day, close in rows}, dtype=float).sort_index()
+        if series.empty or series.index[-1].date() != REFERENCE_DATE.date():
+            raise SystemExit(f"RRG validation FAILED: invalid reference dates for {ticker}")
+        out[ticker] = series
+    if set(out) != set(QUADS).union({"SPY"}):
+        raise SystemExit("RRG validation FAILED: calibration ticker universe incomplete")
     return out
+
+
+def review_live_price_history():
+    if not AUDIT.exists():
+        raise SystemExit("RRG validation FAILED: live RRG audit missing")
+    live = json.loads(AUDIT.read_text(encoding="utf-8")).get("prices", {})
+    missing = sorted(set(CALIBRATION_PRICES) - set(live))
+    revisions, coverage = [], []
+    for ticker, rows in CALIBRATION_PRICES.items():
+        if ticker not in live:
+            continue
+        current = {str(r["time"])[:10]: float(r["close"]) for r in live[ticker]}
+        recent_days = {str(t)[:10] for t, _ in rows[-RECENT_REFERENCE_BARS:]}
+        absent = sorted(recent_days - set(current))
+        if absent:
+            coverage.append({"ticker": ticker, "missing_recent_dates": absent})
+        for time, original in rows:
+            day = str(time)[:10]
+            if day not in current:
+                continue
+            value = current[day]
+            pct = 100.0 * abs(value - original) / abs(original) if original else float("inf")
+            if abs(value - original) > 0.0002:
+                revisions.append({"ticker": ticker, "date": day, "original": original,
+                    "current": value, "absolute_change_pct": round(pct, 6),
+                    "recent_reference_bar": day in recent_days})
+    material = [r for r in revisions if r["recent_reference_bar"]
+                and r["absolute_change_pct"] >= MATERIAL_RECENT_CHANGE_PCT]
+    status = "BLOCK" if (missing or coverage or material) else ("REVIEW" if revisions else "OK")
+    report = {"generated_at": datetime.now(timezone.utc).isoformat(),
+        "reference_date": str(REFERENCE_DATE.date()),
+        "source_artifact": "GitHub Pages successful run #58 artifact 11728872099",
+        "original_full_reference_hash": REFERENCE_PRICE_HASH,
+        "frozen_compact_reference_hash": FROZEN_COMPACT_SHA256,
+        "status": status,
+        "note": "Missing old rolling-window rows do not count as revisions. Never rewrite the calibration fixture automatically.",
+        "missing_tickers": missing, "missing_recent_bars": coverage,
+        "revisions_count": len(revisions),
+        "changed_tickers": sorted({r["ticker"] for r in revisions}),
+        "largest_revisions": sorted(revisions, key=lambda r: -r["absolute_change_pct"])[:50],
+        "material_recent_revisions": material[:50]}
+    REVIEW_OUT.parent.mkdir(parents=True, exist_ok=True)
+    REVIEW_OUT.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print(f"Live Yahoo historical revision review: {status}; revisions={len(revisions)}, missing_recent={len(coverage)}")
+    if status == "BLOCK":
+        raise SystemExit("RRG validation FAILED: material recent historical price revisions or missing reference bars; inspect data/rrg-history-review.json")
+    return report
+
 
 def score(name,fn,prices):
     bench=prices["SPY"]; heads={}
@@ -137,13 +191,14 @@ def score(name,fn,prices):
 
 def main():
     price_hash=calibration_price_hash()
-    if price_hash != REFERENCE_PRICE_HASH:
+    if price_hash != FROZEN_COMPACT_SHA256:
         raise SystemExit(
-            "RRG validation FAILED: calibration price history changed "
-            f"(expected {REFERENCE_PRICE_HASH}, got {price_hash}). "
-            "Review Yahoo historical revisions before accepting a new baseline."
+            "RRG validation FAILED: immutable calibration fixture changed "
+            f"(expected {FROZEN_COMPACT_SHA256}, got {price_hash}). "
+            "Do not overwrite the frozen reference automatically."
         )
-    print(f"Calibration price history hash OK: {price_hash}")
+    print(f"Frozen Oct 9 calibration hash OK: {price_hash}")
+    review_live_price_history()
     prices=load_prices()
     candidates=[
         ("LIVE normalized WMA 10/16/5/4",lambda a,b:normalized(a,b,10,16,5,4)),
@@ -159,7 +214,9 @@ def main():
     out={
         "reference_date":"2026-10-09",
         "benchmark":"SPY",
-        "reference_source":"User-provided EdgeRater Daily screenshots",
+        "reference_source":"User-provided EdgeRater Daily screenshots + immutable Oct 9 source",
+        "frozen_calibration_sha256": price_hash,
+        "original_full_reference_sha256": REFERENCE_PRICE_HASH,
         "live_formula":"LIVE normalized WMA 10/16/5/4",
         "limitations":[
             "Exact EdgeRater/JdK internals are proprietary.",

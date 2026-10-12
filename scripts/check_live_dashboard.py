@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 
 FILES = ['data/rrg-core.json', 'data/rrg-audit.json', 'data/sector-breadth.json',
-         'rrg.html', 'sector-breadth.html', 'breadth-feed.js']
+         'rrg.html', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js']
 
 
 def verify(base):

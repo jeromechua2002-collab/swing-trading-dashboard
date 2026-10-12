@@ -49,6 +49,9 @@ jobs:
       - name: Test sector comparison rules
         run: python -m unittest discover -s scripts -p "test_sector_breadth.py"
 
+      - name: Test trade-confirmation interpretation and interface
+        run: node scripts/test_breadth_confirmation.cjs
+
       - name: Build experimental equal-weight comparison from dashboard data
         run: python scripts/build_sector_breadth.py
 

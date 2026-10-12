@@ -63,3 +63,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify live dashboard data matches this deployment
+        run: python scripts/check_live_dashboard.py "${{ steps.deployment.outputs.page_url }}"

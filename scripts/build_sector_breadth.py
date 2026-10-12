@@ -26,9 +26,13 @@ OUT = Path("data/sector-breadth.json")
 
 
 def daily(s):
-    s = s.dropna().sort_index().copy()
+    s = s.sort_index().copy()
+    if s.empty or not np.isfinite(s).all() or (s <= 0).any():
+        raise ValueError("invalid or empty daily prices")
     s.index = pd.DatetimeIndex([pd.Timestamp(str(t)[:10], tz="UTC") for t in s.index])
-    return s[~s.index.duplicated(keep="last")]
+    if s.index.duplicated().any():
+        raise ValueError("duplicate daily sessions")
+    return s
 
 
 def completed_cutoff(now):
@@ -57,8 +61,14 @@ def classify(cap, equal):
 
 
 def compare_snapshot(audit, raw, adjusted, now):
+    source_time = datetime.fromisoformat(audit["generated_at"])
+    if source_time.tzinfo is None:
+        raise ValueError("source timestamp must include timezone")
+    source_age = (now - source_time).total_seconds()
+    if source_age < -300 or source_age > 72 * 3600:
+        raise ValueError("source build timestamp is stale or in the future")
     cutoff = completed_cutoff(now)
-    caps = {t: daily(pd.Series({r["time"]: r["close"] for r in rows}, dtype=float))
+    caps = {t: daily(pd.Series([r["close"] for r in rows], index=[r["time"] for r in rows], dtype=float))
             for t, rows in audit["prices"].items()}
     spy = caps["SPY"].loc[:cutoff]
     if spy.empty:
@@ -68,7 +78,10 @@ def compare_snapshot(audit, raw, adjusted, now):
         raise ValueError("Dashboard snapshot is stale")
     rows, errors = [], []
     equal_spy, equal_rsp, cap_spy, prices = {}, {}, {}, {}
-    raw = {t: daily(s).loc[:asof] for t, s in raw.items()}
+    raw = {t: daily(s).loc[:cutoff] for t, s in raw.items()}
+    if raw["SPY"].index[-1] != asof:
+        raise ValueError("dashboard session is stale relative to refreshed SPY")
+    raw = {t: s.loc[:asof] for t, s in raw.items()}
     adjusted = {t: daily(s).loc[:asof] for t, s in adjusted.items()}
     for ticker in ["SPY", "RSP", *PAIRS, *[v[0] for v in PAIRS.values()]]:
         s = adjusted.get(ticker)
@@ -83,8 +96,15 @@ def compare_snapshot(audit, raw, adjusted, now):
             if raw_cap.index[-1] != asof or raw_ew.index[-1] != asof or raw["RSP"].index[-1] != asof:
                 raise ValueError("raw close dates do not match dashboard")
             # Refuse a silently revised cap leg from the separate adjusted-price fetch.
-            if abs(float(raw[cap].loc[asof]) / float(raw_cap.loc[asof]) - 1) > 0.0001:
-                raise ValueError("cap raw close changed between dashboard and comparison fetch")
+            for symbol, series in [(cap, raw_cap), ("SPY", spy), (ew, raw_ew), ("RSP", raw["RSP"])]:
+                reference = spy.tail(min(len(series), len(spy)))
+                if len(reference) < 100 or not series.index.equals(reference.index):
+                    raise ValueError(f"{symbol}: missing raw daily sessions")
+            for symbol, series in [(cap, raw_cap), ("SPY", spy)]:
+                recent = series.tail(100)
+                downloaded = raw[symbol].reindex(recent.index)
+                if downloaded.isna().any() or ((downloaded / recent - 1).abs() > 0.0001).any():
+                    raise ValueError(f"{symbol}: raw history changed between dashboard and comparison fetch")
             frame = pd.concat({t: adjusted[t] for t in [cap, ew, "SPY", "RSP"]}, axis=1).dropna()
             if len(frame) < 100 or not frame.index.equals(spy.tail(len(frame)).index):
                 raise ValueError("missing common daily sessions")
@@ -102,7 +122,7 @@ def compare_snapshot(audit, raw, adjusted, now):
                 er = 100 * (factors[ew] / factors["SPY"] - 1)
                 ratio = 100 * (factors[ew] / factors[cap] - 1)
                 state, implication = classify(cr, er)
-                rel = 100 * ((frame[ew] / frame[cap]) / (frame[ew] / frame[cap]).iloc[-n-1] - 1)
+                rel = 100 * ((frame[ew] / frame[cap]).iloc[-6:] / (frame[ew] / frame[cap]).iloc[-6] - 1)
                 slope = float(np.polyfit(np.arange(6), rel.iloc[-6:], 1)[0])
                 metrics[str(n)] = {"cap_vs_spy": round(cr, 3), "equal_vs_spy": round(er, 3),
                     "equal_vs_cap": round(ratio, 3), "equal_vs_rsp": round(100 * (factors[ew] / factors["RSP"] - 1), 3),

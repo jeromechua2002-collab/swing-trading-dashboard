@@ -163,6 +163,7 @@ body{overflow-x:hidden}
 </section>
 </main>
 
+<script src="breadth-feed.js"></script>
 <script>
 const Q=new URLSearchParams(location.search);
 let mode=Q.get("mode") || (Q.get("universe")==="industries"?"industries":"sectors");
@@ -634,7 +635,7 @@ async function boot(){
     const br=await fetch("data/sector-breadth.json?"+stamp);
     if(!br.ok)throw new Error("Equal-weight comparison feed unavailable");
     breadthPayload=await br.json();
-    if(breadthPayload.status!=="ok"||Date.now()-Date.parse(breadthPayload.generated_at)>72*3600000)throw new Error("Equal-weight feed incomplete or stale: "+(breadthPayload.errors||[]).join("; "));
+    validateBreadthFeed(breadthPayload);
   }
   if(mode==="stocks"){
     const valid=(payload.universes.stock_sectors||[]);
@@ -645,11 +646,14 @@ async function boot(){
   resetSelection();
   fullRender();
 }
-boot().catch(err=>{
+function feedFailure(err){
+  if(mode==="equal"){["rrg","benchmarkChart","symbols"].forEach(id=>document.getElementById(id).innerHTML="");document.getElementById("healthBox").textContent="Feed unavailable: "+err.message;}
   document.getElementById("updated").textContent="Data build unavailable";
   document.getElementById("pageSub").textContent="The latest RRG data build could not be loaded: "+err.message;
   console.error(err);
-});
+}
+boot().catch(feedFailure);
+if(mode==="equal"){setInterval(()=>boot().catch(feedFailure),300000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)boot().catch(feedFailure)});}
 </script>
 </body>
 </html>

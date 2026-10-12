@@ -112,4 +112,16 @@ def export():
     print(f"Journal sync: {len(trades)} closed, {len(opened)} open, realized SGD {out['realized_pnl_sgd']:.2f}, equity SGD {equity:.2f}")
 
 if __name__=="__main__":
-    export()
+    try:
+        export()
+    except RuntimeError as exc:
+        # The Rotation Sync integration may not yet be shared with the Trades database.
+        # Keep the previously audited snapshot available without pretending it is live.
+        snapshot = Path("data/journal-performance.json")
+        if "Notion HTTP 404" in str(exc) and "not_found" in str(exc) and snapshot.exists():
+            stored = json.loads(snapshot.read_text(encoding="utf-8"))
+            if len(stored.get("closed_trades", [])) < 8:
+                raise SystemExit("Journal fallback snapshot incomplete") from exc
+            print("::warning::Notion Trades DB is not shared with Rotation Sync. Using previously verified snapshot; automatic trade data remains stale.")
+        else:
+            raise

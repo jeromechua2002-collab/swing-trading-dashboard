@@ -52,6 +52,11 @@ jobs:
       - name: Build experimental equal-weight comparison from dashboard data
         run: python scripts/build_sector_breadth.py
 
+      - name: Sync swing journal equity and P/L calendar
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python scripts/sync_journal_performance.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

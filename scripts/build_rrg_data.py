@@ -180,7 +180,7 @@ def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
                 interval=cfg["interval"],
                 auto_adjust=False,
                 progress=False,
-                threads=True,
+                threads=False,
                 group_by="ticker",
             )
             if data is not None and not data.empty:
@@ -291,13 +291,15 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
 
     # Yahoo occasionally returns a non-empty batch with one or two symbols
     # missing. Retry only those symbols individually before failing closed.
-    missing = [ticker for ticker in tickers if ticker not in closes]
+    missing = [ticker for ticker in tickers if ticker not in closes or closes[ticker].dropna().empty]
     if missing:
-        print(f"{label}: retrying {len(missing)} missing symbols individually")
+        print(f"{label}: retrying {len(missing)} missing/empty symbols individually")
     for ticker in missing:
         try:
             one = download_prices([ticker], cfg)
             series = close_series(one, ticker)
+            if series.dropna().empty:
+                raise ValueError(f"{ticker}: retry returned empty close series")
             if cfg.get("synthetic_hours"):
                 series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
             closes[ticker] = series

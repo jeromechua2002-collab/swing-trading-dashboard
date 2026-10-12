@@ -1,0 +1,225 @@
+{
+  "updated_at": "2026-10-12T17:05:00Z",
+  "snapshot_kind": "manual_verified_pending_integration_access",
+  "source": "Notion closed Trades #1-8; FX for AMZU #8 provisional 1.28",
+  "starting_capital_sgd": 5000,
+  "current_equity_sgd": 5169.54,
+  "realized_pnl_sgd": 169.54,
+  "return_pct": 3.39,
+  "closed_trades": [
+    {
+      "number": 1,
+      "symbol": "RAM",
+      "exit_date": "2026-10-02",
+      "net_usd": 14.25,
+      "fx": 1.2786,
+      "net_sgd": 18.22
+    },
+    {
+      "number": 2,
+      "symbol": "DAMD",
+      "exit_date": "2026-10-02",
+      "net_usd": 23.15,
+      "fx": 1.2786,
+      "net_sgd": 29.6
+    },
+    {
+      "number": 3,
+      "symbol": "SOXS",
+      "exit_date": "2026-10-07",
+      "net_usd": 225.26,
+      "fx": 1.28009,
+      "net_sgd": 288.35
+    },
+    {
+      "number": 4,
+      "symbol": "SOXL",
+      "exit_date": "2026-10-08",
+      "net_usd": -77.53,
+      "fx": 1.28009,
+      "net_sgd": -99.25
+    },
+    {
+      "number": 5,
+      "symbol": "SOXS",
+      "exit_date": "2026-10-08",
+      "net_usd": -82.97,
+      "fx": 1.28009,
+      "net_sgd": -106.21
+    },
+    {
+      "number": 6,
+      "symbol": "MUZ",
+      "exit_date": "2026-10-08",
+      "net_usd": 125.75,
+      "fx": 1.28009,
+      "net_sgd": 160.97
+    },
+    {
+      "number": 7,
+      "symbol": "SOXL",
+      "exit_date": "2026-10-09",
+      "net_usd": -67.59,
+      "fx": 1.28,
+      "net_sgd": -86.52
+    },
+    {
+      "number": 8,
+      "symbol": "AMZU",
+      "exit_date": "2026-10-12",
+      "net_usd": -27.83,
+      "fx": 1.28,
+      "net_sgd": -35.62
+    }
+  ],
+  "open_trades": [
+    {
+      "number": 9,
+      "symbol": "AMZU",
+      "status": "Open",
+      "size": 40,
+      "entry_price": 37.2,
+      "entry_date": "2026-10-12"
+    },
+    {
+      "number": 10,
+      "symbol": "SOXL",
+      "status": "Open",
+      "size": 20,
+      "entry_price": 128.11,
+      "entry_date": "2026-10-12"
+    }
+  ],
+  "curve": [
+    {
+      "date": "2026-09-30",
+      "equity_sgd": 5000,
+      "number": 0,
+      "symbol": "Start",
+      "net_sgd": 0
+    },
+    {
+      "date": "2026-10-02",
+      "equity_sgd": 5018.22,
+      "number": 1,
+      "symbol": "RAM",
+      "net_sgd": 18.22
+    },
+    {
+      "date": "2026-10-02",
+      "equity_sgd": 5047.82,
+      "number": 2,
+      "symbol": "DAMD",
+      "net_sgd": 29.6
+    },
+    {
+      "date": "2026-10-07",
+      "equity_sgd": 5336.17,
+      "number": 3,
+      "symbol": "SOXS",
+      "net_sgd": 288.35
+    },
+    {
+      "date": "2026-10-08",
+      "equity_sgd": 5236.92,
+      "number": 4,
+      "symbol": "SOXL",
+      "net_sgd": -99.25
+    },
+    {
+      "date": "2026-10-08",
+      "equity_sgd": 5130.71,
+      "number": 5,
+      "symbol": "SOXS",
+      "net_sgd": -106.21
+    },
+    {
+      "date": "2026-10-08",
+      "equity_sgd": 5291.68,
+      "number": 6,
+      "symbol": "MUZ",
+      "net_sgd": 160.97
+    },
+    {
+      "date": "2026-10-09",
+      "equity_sgd": 5205.16,
+      "number": 7,
+      "symbol": "SOXL",
+      "net_sgd": -86.52
+    },
+    {
+      "date": "2026-10-12",
+      "equity_sgd": 5169.54,
+      "number": 8,
+      "symbol": "AMZU",
+      "net_sgd": -35.62
+    }
+  ],
+  "calendar": {
+    "2026-10-02": {
+      "net_sgd": 47.82,
+      "trades": [
+        {
+          "number": 1,
+          "symbol": "RAM",
+          "net_sgd": 18.22
+        },
+        {
+          "number": 2,
+          "symbol": "DAMD",
+          "net_sgd": 29.6
+        }
+      ]
+    },
+    "2026-10-07": {
+      "net_sgd": 288.35,
+      "trades": [
+        {
+          "number": 3,
+          "symbol": "SOXS",
+          "net_sgd": 288.35
+        }
+      ]
+    },
+    "2026-10-08": {
+      "net_sgd": -44.49,
+      "trades": [
+        {
+          "number": 4,
+          "symbol": "SOXL",
+          "net_sgd": -99.25
+        },
+        {
+          "number": 5,
+          "symbol": "SOXS",
+          "net_sgd": -106.21
+        },
+        {
+          "number": 6,
+          "symbol": "MUZ",
+          "net_sgd": 160.97
+        }
+      ]
+    },
+    "2026-10-09": {
+      "net_sgd": -86.52,
+      "trades": [
+        {
+          "number": 7,
+          "symbol": "SOXL",
+          "net_sgd": -86.52
+        }
+      ]
+    },
+    "2026-10-12": {
+      "net_sgd": -35.62,
+      "trades": [
+        {
+          "number": 8,
+          "symbol": "AMZU",
+          "net_sgd": -35.62
+        }
+      ]
+    }
+  }
+}

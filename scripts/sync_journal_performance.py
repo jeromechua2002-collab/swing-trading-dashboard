@@ -75,6 +75,9 @@ def export():
               "status":status,"entry_date":entry,"size":qty,
               "entry_price":number(p.get("Avg Entry")),
               "url":row.get("url","")}
+        note_text=text(p.get("Notes"))
+        if note_text:
+            item["notes"]=note_text
         if status=="Open":
             opened.append(item)
             continue

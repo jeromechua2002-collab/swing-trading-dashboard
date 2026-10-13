@@ -35,7 +35,7 @@ def run():
             page.locator("#sector").select_option(sector)
             page.wait_for_function("document.querySelector('#coverage').textContent.includes('/')",timeout=20000)
             page.wait_for_function("document.querySelector('#status').textContent.includes('Completed-session')",timeout=20000)
-            page.wait_for_function("document.querySelector('#benchmark').textContent.startsWith(arguments[0])",sector,timeout=20000)
+            page.wait_for_function("(sector) => document.querySelector('#benchmark').textContent.startsWith(sector)",arg=sector,timeout=20000)
             rows=page.locator("#rows tr").count()
             assert rows>=8,(sector,rows,page.locator("#status").inner_text())
             page.locator("#filter").select_option("improving")

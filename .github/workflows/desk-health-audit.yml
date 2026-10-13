@@ -1,0 +1,61 @@
+name: Desk cockpit full-system pre-release audit
+on:
+  push:
+    branches: ["feat/desk-health-and-navigation-20261014"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install market-data dependencies
+        run: pip install --disable-pip-version-check -r requirements.txt
+      - name: Test homepage and browser-side release integrity
+        run: |
+          node --check desk-health.js
+          node scripts/test_desk_health.cjs
+          node scripts/test_desk_home.cjs
+      - name: Verify manifest failure modes and journal arithmetic
+        run: |
+          python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
+          python scripts/test_journal_snapshot.py
+      - name: Verify absolute-price context and execution risk checks
+        run: |
+          python -m unittest discover -s scripts -p 'test_price_context.py' -v
+          node scripts/test_execution_gate.cjs
+      - name: Build real completed-session market data
+        run: python scripts/build_rrg_data.py
+      - name: Preserve independent RRG reference test
+        run: python scripts/validate_rrg.py
+      - name: Build all cap/equal-weight pairs
+        run: python scripts/build_sector_breadth.py
+      - name: Validate 1W/1D/4H/1H and 116-stock universe
+        run: |
+          python scripts/audit_market_universe.py
+          node scripts/test_stock_leadership.cjs
+          node scripts/test_breadth_ticker_mapping.cjs
+          node scripts/test_breadth_feed.cjs data/sector-breadth.json
+      - name: Produce source-linked complete release
+        run: python scripts/build_release_manifest.py
+      - name: Recheck frontend and generated integrity
+        run: |
+          node scripts/test_desk_health.cjs
+          node scripts/test_desk_home.cjs
+          python -m py_compile scripts/build_release_manifest.py scripts/check_live_dashboard.py
+      - name: Store verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-desk-pre-release
+          path: |
+            data/release-manifest.json
+            data/rrg-core.json
+            data/sector-breadth.json
+            data/journal-performance.json
+          if-no-files-found: warn

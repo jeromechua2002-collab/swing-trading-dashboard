@@ -37,6 +37,14 @@ jobs:
       - name: Install market-data dependencies
         run: pip install --disable-pip-version-check -r requirements.txt
 
+      - name: Unit-test absolute price data hygiene
+        run: python -m unittest discover -s scripts -p 'test_price_context.py' -v
+
+      - name: Test execution risk gates and broker-session protection
+        run: |
+          node --check trade-gate.js
+          node scripts/test_execution_gate.cjs
+
       - name: Build RRG data
         run: python scripts/build_rrg_data.py
 
@@ -62,10 +70,12 @@ jobs:
       - name: Validate every ticker and timeframe
         run: python scripts/audit_market_universe.py
 
-      - name: Test all stock leadership rankings and timestamps
+      - name: Test all stock leadership, price context and both frontends
         run: |
           node --check stock-leadership.js
+          node --check trade-gate.js
           node scripts/test_stock_leadership.cjs
+          node scripts/test_execution_gate.cjs
 
       - name: Sync swing journal equity and P/L calendar
         env:

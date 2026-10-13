@@ -344,7 +344,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     # only completed U.S. daily bars; do not promote intraday close to 1D.
     if label == "1D":
         ny_now = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York"))
-        if ny_now.weekday() < 5 and ny_now.time() < dt_time(16, 30):
+        if ny_now.weekday() < 5 and ny_now.time() < dt_time(16, 15):
             cut_day = ny_now.date()
             dropped = 0
             for ticker, bars in list(closes.items()):
@@ -353,7 +353,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
                     closes[ticker] = bars.loc[[pd.Timestamp(t).date() < cut_day for t in bars.index]]
                     dropped += 1
             if dropped:
-                print(f"{label}: removed {dropped} current-session unfinished daily bars before 16:30 New York time")
+                print(f"{label}: removed {dropped} current-session unfinished daily bars before 16:15 New York time")
 
     # During the cash session Yahoo may deliver the newest partial intraday bar
     # for SPY but not every ETF. Compare all instruments on the same completed

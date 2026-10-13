@@ -64,6 +64,12 @@ jobs:
       - name: Install market-data dependencies
         run: pip install --disable-pip-version-check -r requirements.txt
 
+      - name: Audit every HTML dashboard and inline JavaScript
+        run: node scripts/test_all_dashboards.cjs
+
+      - name: Test dated reference crossovers without forward-looking data
+        run: python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
+
       - name: Unit-test release provenance and data coherence
         run: python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
 
@@ -86,6 +92,9 @@ jobs:
 
       - name: Validate RRG against EdgeRater benchmark
         run: python scripts/validate_rrg.py
+
+      - name: Compare October 13 reference with model using matching bar dates
+        run: python scripts/audit_rrg_reference_daily.py
 
       - name: Assess RRG parameter sensitivity
         run: python scripts/rrg_sensitivity.py
@@ -123,6 +132,14 @@ jobs:
 
       - name: Build fail-closed release manifest for all public dashboards
         run: python scripts/build_release_manifest.py
+
+      - name: Browser-test stock radar, RRG, breadth and embedded Notion-like view
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          pip install playwright==1.56.0
+          python -m playwright install chromium
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/trading-desk-http.log 2>&1 &
+          DASHBOARD_TEST_URL=http://127.0.0.1:8765/ python scripts/smoke_dashboard_browser.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

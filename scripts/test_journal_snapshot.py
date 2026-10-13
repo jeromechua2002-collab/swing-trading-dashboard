@@ -45,9 +45,12 @@ def main():
     assert cents(trade["net_usd"])==7025 and cents(trade["fees_usd"])==726, "SOXS broker result/fees incorrect"
     assert [(x["quantity"],cents(x["price"])) for x in trade["exits"]]==[(50,4009),(50,3954)], "SOXS broker fills mismatched"
     assert cents(trade["broker_reconciliation_difference_usd"])==201, "SOXS broker reconciliation discrepancy not preserved"
-    assert [x["symbol"] for x in opened]==["AMZU"], "Open AMZU was unexpectedly closed or duplicated"
-    assert cents(d["current_equity_sgd"])==510519 and cents(d["calendar"]["2026-10-13"]["net_sgd"])==-6435, "Latest SOXL/SOXS combined metrics incorrect"
-    print(f"JOURNAL AUDIT PASSED: {len(closed)} closed / {len(opened)} open / {len(calendar)} calendar dates / equity S$ {d['current_equity_sgd']:.2f} / October 13 S$ {d['calendar']['2026-10-13']['net_sgd']:.2f}. SOXS exit lots, broker P/L, fees and reconciliation validated.")
+    # Historical broker-proven trades remain immutable while future trades and
+    # open-position status can change. Do not hardcode today's total equity.
+    soxl=next((x for x in closed if x["number"]==10),None)
+    assert soxl and soxl["symbol"]=="SOXL" and cents(soxl["net_usd"])==-12052, "Historical SOXL #10 mismatch"
+    assert cents(soxl["net_sgd"])+cents(trade["net_sgd"])==-6435, "October 13 historical SOXL/SOXS pair mismatch"
+    print(f"JOURNAL AUDIT PASSED: {len(closed)} closed / {len(opened)} open / {len(calendar)} calendar dates / equity S$ {d['current_equity_sgd']:.2f} / historical SOXL/SOXS pair S$ -64.35. SOXS exit lots, broker P/L, fees and reconciliation validated.")
 
 if __name__=="__main__":
     main()

@@ -27,6 +27,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify Pages uses custom GitHub Actions (not branch deployment)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from urllib import request, error
+          req = request.Request(
+              "https://api.github.com/repos/" + os.environ["GITHUB_REPOSITORY"] + "/pages",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                  "X-GitHub-Api-Version": "2022-11-28",
+              })
+          try:
+              with request.urlopen(req, timeout=20) as resp:
+                  site = json.load(resp)
+          except error.HTTPError as exc:
+              print(f"::error title=Pages configuration unreadable::GitHub Pages API HTTP {exc.code}. Check repository Pages access and source.", flush=True)
+              sys.exit(1)
+          mode = site.get("build_type")
+          print("GitHub Pages publisher:", mode, "URL:", site.get("html_url"))
+          if mode != "workflow":
+              print("::error title=Conflicting Pages publishers::Pages is configured to publish from a branch, while this workflow deploys generated JSON artifacts. Switch Settings > Pages > Build and deployment > Source to GitHub Actions. The branch publisher can overwrite generated data and cause 404 errors.")
+              sys.exit(1)
+          PY
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

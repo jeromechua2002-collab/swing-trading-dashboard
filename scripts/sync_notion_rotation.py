@@ -177,6 +177,20 @@ def signal_snapshot_status(token):
     }
 
 
+def chart_snapshot_current(token, expected_date):
+    """Check a stable chart row before skipping a same-date sync."""
+    result = notion_request(
+        "POST",
+        f"https://api.notion.com/v1/data_sources/{CHART_DATA_SOURCE_ID}/query",
+        token,
+        json={"page_size": 2, "filter": {
+            "property": "Series", "title": {"equals": "SMH|5D|05"}
+        }},
+    )
+    rows = result.get("results", [])
+    return len(rows) == 1 and page_date(rows[0], "Updated") == expected_date
+
+
 def latest_spy_close_date():
     spy = yf.download(
         tickers=["SPY"],
@@ -728,8 +742,10 @@ def main():
                 f"duplicates={snapshot['duplicates']}, extra={snapshot['extra']}"
             )
         if snapshot["all_same_date"] and snapshot["date"] == spy_date:
-            print("No new U.S. market close and snapshot is complete; skipping full sync.")
-            return
+            if chart_snapshot_current(token, spy_date):
+                print("No new U.S. close and chart metadata is current; skipping full sync.")
+                return
+            print("Signal date matches, but chart metadata is stale; repairing chart sync.")
 
     downloaded = yf.download(
         tickers=ALL_TICKERS,

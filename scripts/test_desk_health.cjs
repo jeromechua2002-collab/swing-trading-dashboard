@@ -1,0 +1,23 @@
+const assert=require("node:assert/strict"),{validate}=require("../desk-health.js");
+const NOW=Date.parse("2026-10-14T02:00:00Z");
+const sha="a".repeat(64),digest={rrg:sha,breadth:sha,journal:sha};
+const members={};
+for(let i=0;i<11;i++)members["X"+i]=Array.from({length:i===10?16:10},(_,j)=>"ST"+i+"_"+j);
+const m={schema_version:1,market_status:"validated_completed_session",rrg_session:"2026-10-13",breadth_session:"2026-10-13",market_generated_at:"2026-10-13T23:10:00+00:00",journal_generated_at:"2026-10-13T23:15:00+00:00",market_coverage:{stocks:116,sectors:11,industries:16,breadth_pairs:11,timeframes:4},journal_status:"manual_snapshot",journal_closed_count:10,journal_open_count:1,journal_equity_sgd:5105.19,journal_last_closed_trade:"2026-10-13",sha256:digest,workflow_run:"123",commit:"abcdef"};
+const r={generated_at:m.market_generated_at,universes:{stock_members:members},timeframes:{"1D":{benchmark_price:[{time:"2026-10-13T00:00:00Z"}]}}};
+const b={status:"ok",as_of:"2026-10-13",rows:Object.keys(members).map(cap=>({cap}))};
+const j={updated_at:m.journal_generated_at,closed_trades:Array.from({length:10},(_,i)=>({number:i+1})),open_trades:[{symbol:"AMZU"}],curve:[{equity_sgd:5000},{equity_sgd:5105.19}],current_equity_sgd:5105.19,realized_pnl_sgd:105.19};
+function run(mm=m,rr=r,bb=b,jj=j,h=digest,now=NOW){return validate(mm,rr,bb,jj,h,now)}
+const x=run();assert.equal(x.marketHealthy,true);assert.equal(x.journalLive,false);assert.equal(x.equity,5105.19);assert.equal(x.stocks,116);
+const clone=x=>structuredClone(x),bad=(change,pattern)=>assert.throws(change,pattern);
+bad(()=>run({...m,rrg_session:"2026-10-12"}),/sessions disagree/);
+bad(()=>run({...m,market_status:"unverified"}),/manifest/);
+bad(()=>run(m,r,{...b,rows:b.rows.slice(1)}),/breadth pairs/);
+bad(()=>run(m,r,b,{...j,closed_trades:[]}),/Journal curve\\/manifest/);
+bad(()=>run(m,r,b,j,{...digest,rrg:"b".repeat(64)}),/hash mismatch/);
+bad(()=>run(m,r,b,j,{rrg:sha,breadth:sha}),/hash mismatch/);
+bad(()=>run(m,{...r,generated_at:"2026-10-12T20:00:00+00:00"}),/generation times/);
+const old={...m,market_generated_at:"2026-10-06T20:00:00+00:00"};const oldr={...r,generated_at:old.market_generated_at};assert.equal(run(old,oldr,b,j,digest).marketHealthy,false);
+assert.equal(run({...m,journal_status:"notion_sync"}).journalLive,true);
+bad(()=>run({...m,market_generated_at:"2027-01-01T00:00:00Z"},{...r,generated_at:"2027-01-01T00:00:00Z"}),/Future feed/);
+console.log("DESK HEALTH TESTS PASSED: complete-session coherence, SHA integrity, 116-member coverage, 11 pairs, stale feed and manual-vs-synced journal labels");

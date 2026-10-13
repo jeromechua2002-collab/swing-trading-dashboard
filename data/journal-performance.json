@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-10-13T01:55:00Z",
+  "updated_at": "2026-10-13T16:01:19.460Z",
   "snapshot_kind": "manual_verified_pending_reconciliation",
-  "source": "Notion broker-reported closed trade net P/L; SOXL net user-reported with $2.20 arithmetic discrepancy; provisional FX 1.28",
+  "source": "Notion Swing Journal; broker-reported SOXL #10 and SOXS #11 realized USD P/L; journal FX field converted to SGD. Exit fills/fees stored with reconciliation flags.",
   "starting_capital_sgd": 5000,
-  "current_equity_sgd": 5015.27,
-  "realized_pnl_sgd": 15.27,
-  "return_pct": 0.31,
+  "current_equity_sgd": 5105.19,
+  "realized_pnl_sgd": 105.19,
+  "return_pct": 2.1,
   "closed_trades": [
     {
       "number": 1,
@@ -83,6 +83,45 @@
       "fx": 1.28,
       "net_sgd": -154.27,
       "notes": "User reported net P/L -120.52; prices and $4.52 stated fees imply -122.72; $2.20 unresolved difference."
+    },
+    {
+      "number": 11,
+      "id": "3f81e381-ccd7-81c3-ac6c-f9d1470f37b4",
+      "symbol": "SOXS",
+      "status": "Closed",
+      "entry_date": "2026-10-13",
+      "exit_date": "2026-10-13",
+      "size": 100,
+      "entry_price": 39.06,
+      "exit_price": 39.815,
+      "exits": [
+        {
+          "quantity": 50,
+          "price": 40.09,
+          "proceeds_usd": 2004.5,
+          "realized_broker_usd": 48.87,
+          "fees_usd": 2.38,
+          "time_sgt": "2026-10-13T23:30:22+08:00"
+        },
+        {
+          "quantity": 50,
+          "price": 39.54,
+          "proceeds_usd": 1977,
+          "realized_broker_usd": 21.38,
+          "fees_usd": 2.38,
+          "time_sgt": "2026-10-13T23:54:02+08:00"
+        }
+      ],
+      "entry_fees_usd": 2.5,
+      "exit_fees_usd": 4.76,
+      "fees_usd": 7.26,
+      "net_usd": 70.25,
+      "fx": 1.28,
+      "net_sgd": 89.92,
+      "fill_based_net_usd": 68.24,
+      "broker_reconciliation_difference_usd": 2.01,
+      "notes": "Exit fills and broker realized P/L directly from user Tiger screenshot; broker P/L +$70.25 is reported value. Fill arithmetic 100×39.06 cost; proceeds 2004.50+1977.00; listed fees 2.50+2.38+2.38 imply +$68.24, unexplained difference +$2.01. Provisional 1.28 FX; do not deduct fees twice.",
+      "url": "https://app.notion.com/p/3f81e381ccd781c3ac6cf9d1470f37b4"
     }
   ],
   "open_trades": [
@@ -165,6 +204,13 @@
       "number": 10,
       "symbol": "SOXL",
       "net_sgd": -154.27
+    },
+    {
+      "date": "2026-10-13",
+      "equity_sgd": 5105.19,
+      "number": 11,
+      "symbol": "SOXS",
+      "net_sgd": 89.92
     }
   ],
   "calendar": {
@@ -234,12 +280,17 @@
       ]
     },
     "2026-10-13": {
-      "net_sgd": -154.27,
+      "net_sgd": -64.35,
       "trades": [
         {
           "number": 10,
           "symbol": "SOXL",
           "net_sgd": -154.27
+        },
+        {
+          "number": 11,
+          "symbol": "SOXS",
+          "net_sgd": 89.92
         }
       ]
     }

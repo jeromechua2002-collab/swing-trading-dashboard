@@ -175,6 +175,7 @@ let payload=null;
 let stockPayload=null;
 let validationReport=null;
 let sensitivityReport=null;
+let trajectoryAudit=null;
 const selected=new Set();
 const svg=document.getElementById("rrg");
 const benchSvg=document.getElementById("benchmarkChart");
@@ -570,7 +571,18 @@ function renderHealth(){
 }
 function fullRender(){
   setupNavigation();setupControls();setupText();renderBenchmark();buildSymbolList();renderPlot();renderSectorAnalytics();renderHealth();
-  document.getElementById("updated").textContent="Data "+new Date(payload.generated_at).toLocaleString();
+  // Build timestamp is NOT the date of the latest confirmed price candle.
+  const price=currentBenchmarkPrice(),lastBar=price[price.length-1];
+  const sourceDate=lastBar?lastBar.time.slice(0,10):"unknown";
+  const daily=((payload.timeframes||{})["1D"]||{}).benchmark_price||[];
+  const dailyDate=daily.length?daily[daily.length-1].time.slice(0,10):"unknown";
+  const comp=trajectoryAudit && tf==="1D" ? " · EdgeRater 2026-10-13: "+(
+    trajectoryAudit.status==="REF_NOT_YET_AVAILABLE"?"NOT YET COMPARABLE (model older)":
+    trajectoryAudit.status==="SAME_DATE_DIVERGENCES"?"MODEL DIFFERENCES FLAGGED ("+trajectoryAudit.mismatches.length+")":
+    trajectoryAudit.status==="SAME_DATE_QUADRANTS_AGREE"?"dated quadrant sample matched":"reference unavailable") : "";
+  document.getElementById("updated").textContent="BAR AS-OF "+sourceDate+" ("+tf+") · Daily "+dailyDate+" · built "+new Date(payload.generated_at).toLocaleString()+comp;
+  document.getElementById("plotMeta").textContent="Benchmark "+benchmark+" · 100/100 · "+tf+" bars through "+sourceDate+" · Public approximation, not EdgeRater-native";
+
 }
 document.querySelectorAll("[data-tf]").forEach(b=>b.addEventListener("click",()=>{
   tf=b.dataset.tf;document.querySelectorAll("[data-tf]").forEach(x=>x.classList.toggle("active",x===b));
@@ -599,11 +611,13 @@ async function loadStockSector(sector){
 }
 async function boot(){
   const stamp=Date.now();
-  const [r,v,s]=await Promise.all([
-    fetch("data/rrg-core.json?"+stamp),
-    fetch("data/rrg-validation.json?"+stamp),
-    fetch("data/rrg-sensitivity.json?"+stamp)
+  const [r,v,s,a]=await Promise.all([
+    fetch("data/rrg-core.json?"+stamp,{cache:"no-store"}),
+    fetch("data/rrg-validation.json?"+stamp,{cache:"no-store"}),
+    fetch("data/rrg-sensitivity.json?"+stamp,{cache:"no-store"}),
+    fetch("data/rrg-reference-trajectory-audit.json?"+stamp,{cache:"no-store"})
   ]);
+  if(a.ok) trajectoryAudit=await a.json();
   if(!r.ok) throw new Error("RRG core data unavailable");
   payload=await r.json();
   if(v.ok) validationReport=await v.json();

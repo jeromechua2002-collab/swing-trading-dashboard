@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Swing Trade Decision Gate</title><style>
+:root{color-scheme:dark;--bg:#10151c;--panel:#1b2430;--edge:#354154;--txt:#eef3fa;--dim:#a7b7c8;--danger:#f08991;--green:#9af0bb}*{box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font:14px system-ui,sans-serif;margin:0}main{margin:auto;max-width:1140px;padding:19px}h1{font-size:23px;margin:5px 0}h2{font-size:17px;margin:0 0 10px}.note{font-size:12px;line-height:1.6;color:var(--dim)}.kicker{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--green);font-weight:bold}.card{background:var(--panel);border:1px solid var(--edge);padding:15px;margin:14px 0;border-radius:12px}.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--dim)}input,select,textarea,button{background:#111923;color:var(--txt);border:1px solid #53647c;border-radius:7px;font:14px system-ui,sans-serif;padding:9px;width:100%}textarea{min-height:70px}label.check{flex-direction:row;align-items:flex-start;gap:9px;margin:10px 0;font-size:13px;color:var(--txt)}.check input{width:18px;min-width:18px;height:18px;margin:1px 0}.readout{border-left:4px solid var(--danger);background:#322129;padding:14px;border-radius:5px}.readout.ok{border-color:var(--green);background:#123324}.readout h2{font-size:17px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}.stat{border:1px solid #475064;padding:8px;border-radius:7px;font-size:12px}.stat strong{display:block;margin-top:4px;font-size:17px}.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}button{cursor:pointer;width:auto}a{color:#9bc8fc}.warning{color:#ffd28d}ul{line-height:1.55;padding-left:20px}details{margin:10px 0}summary{cursor:pointer;font-weight:600}
+</style></head><body><main><div class="kicker">RRG → Price → Order eligibility</div><h1>Swing Trade Decision Gate</h1><p class="note">This worksheet implements our Notion <b>Independent Screening & Execution Manual</b> and Rader's five-factor checklist. It never places orders, and cannot independently verify your manual ticks or your broker's overnight stop support. No level is auto-invented from a sector RRG or a daily EMA.</p>
+<div id="context" class="card"><b>Research context</b><p class="note" id="contextStatus">Choose a stock from the Stock Leadership Radar or enter a symbol. Completed-session data are research context, not a current executable quote.</p></div>
+<form id="plan" novalidate><section class="card"><h2>1 · Trade thesis and actual instrument</h2>
+<div class="cols"><label>Underlying ticker<input id="ticker" placeholder="MRK / ABBV / SOXX"></label><label>Actual purchased ticker<input id="vehicle" placeholder="MRK / PALU / SOXS"></label><label>Instrument type<select id="vehicleType"><option value="stock">Shares, unlevered</option><option value="leveragedETF">Daily leveraged long ETF</option><option value="inverseETF">Daily inverse ETF purchased long</option></select></label><label>Setup class<select id="setupType"><option value="leader">Leader continuation</option><option value="recovery">Lagging → Improving rotation</option><option value="failed-retest">Failed retest / bearish underlying</option><option value="countertrend">Countertrend rebound (higher risk)</option></select></label></div>
+<div class="cols"><label>Current hypothesis (not a buy signal)<textarea id="hypothesis" placeholder="XLV broad relative strength; MRK Improving/Improving; price structure not yet confirmed"></textarea></label><label>Nearest evidence-based first supply/target<textarea id="evidence" placeholder="Specific 1H/4H pivot, source, screenshot time and why first actual obstacle is here"></textarea></label></div>
+</section><section class="card"><h2>2 · Trade levels and capital — actual traded instrument, USD</h2><div class="cols">
+<label>Entry price (USD)<input id="entry" type="number" min="0" step="any" placeholder="Required"></label>
+<label>Structural stop (USD)<input id="stop" type="number" min="0" step="any" placeholder="Required"></label>
+<label>First real target (USD)<input id="target1" type="number" min="0" step="any" placeholder="Required"></label>
+<label>Shares (whole)<input id="quantity" type="number" min="1" step="1" placeholder="Required"></label>
+<label>Buy fee (USD)<input id="entryFee" type="number" min="0" step="any" placeholder="Required"></label>
+<label>Sell fee (USD)<input id="exitFee" type="number" min="0" step="any" placeholder="Required"></label>
+<label>Round-trip slip + spread per share (USD)<input id="roundTripSlipPerShare" type="number" min="0" step="any" placeholder="Required; enter 0 only if justified"></label>
+<label>Available trade cash (USD)<input id="cashUSD" type="number" min="0" step="any" placeholder="Required"></label>
+<label>Maximum planned net loss (USD)<input id="maxLossUSD" type="number" min="0" step="any" placeholder="Required"></label>
+</div><p class="note">First-target net R:R = (shares × (T1 − entry) − both fees − slippage) ÷ (shares × (entry − stop) + both fees + slippage). Moving the stop solely to make 2R pass is not allowed. Stop orders do not cap gaps or promise a fill.</p></section>
+<section class="card"><h2>3 · Trading-session and catalyst protection</h2><div class="cols">
+<label>Intended order / management session<select id="plannedSession"><option value="RTH">U.S. regular market only</option><option value="extended">Premarket / after-hours</option><option value="overnight">Overnight (broker-supported session)</option></select></label>
+<label>Broker verified stop trigger hours<select id="stopCoverage"><option value="unknown">Unknown — block</option><option value="RTH-only">Regular hours only</option><option value="all-planned-hours">Verified for all intended trading/holding hours</option></select></label></div>
+<label class="check"><input type="checkbox" id="overnightHold">I intend to hold exposure through an overnight period.</label>
+<label class="check"><input type="checkbox" id="gapRiskAccepted">For any overnight hold: I accept that gaps may exceed the planned stop and have sized for that possibility.</label>
+<label class="check"><input type="checkbox" id="eventBeforeExit">A binary macro/earnings event is scheduled before planned exit.</label>
+<label class="check"><input type="checkbox" id="eventRiskPlanVerified">For a scheduled event before exit: I have an explicit exit-before-event or event-exposure plan.</label>
+<label class="check"><input type="checkbox" id="countertrendRiskAccepted">For countertrend trades only: I acknowledge the higher reversal risk and have the actual countertrend reversal trigger.</label>
+<p class="note warning">After your SOXL overnight non-trigger, do not infer that GTC or a displayed stop means that the broker will actually trigger it in every trading session. Verify Tiger's order type, market-hours eligibility and order history.</p>
+</section><section class="card"><h2>4 · Rader's five-factor and execution checklist</h2>
+<label class="check"><input type="checkbox" id="marketRegimeChecked">Market environment: trend, CPI/PPI/OPEX, yield/volatility regime and alternate case assessed.</label>
+<label class="check"><input type="checkbox" id="catalystChecked">Theme/catalyst checked with current sources; earnings date verified.</label>
+<label class="check"><input type="checkbox" id="relativeVolumeChecked">Current underlying equity volume/relative volume examined; unusual options flow is not invented.</label>
+<label class="check"><input type="checkbox" id="pivotVerified">Technical buildout: 4H trend, 1H structure and meaningful swing for stop checked.</label>
+<label class="check"><input type="checkbox" id="liquidityChecked">Stock characteristics: actual vehicle liquidity, spread, volatility and gap history considered.</label>
+<label class="check"><input type="checkbox" id="underlyingChecked">Underlying AND actual purchased vehicle charts checked; no mechanical 2×/3× translation.</label>
+<label class="check"><input type="checkbox" id="quoteChecked">Actual purchased vehicle's fresh executable quote and order-size cash checked.</label>
+<label class="check"><input type="checkbox" id="firstTargetVerified">TP1 is the nearest real supply/obstacle; no distant target chosen to make R:R pass.</label>
+<label class="check"><input type="checkbox" id="triggerConfirmed">Predeclared 15/30-minute completed-candle entry trigger confirmed.</label>
+<label class="check"><input type="checkbox" id="stopEligibilityVerified">Broker's specific stop/order-type rules verified for every intended exposure session.</label>
+</section><div class="row"><button type="submit">Check eligibility and net R:R</button><button type="button" id="copy">Copy decision card</button><button type="reset" id="reset">Clear inputs</button></div></form>
+<section id="out" class="card"><div id="result" class="readout"><h2>Incomplete — no entry approved</h2><p class="note">Enter real broker/price structure details above and complete the source-verified checks.</p></div></section>
+<div class="note">Sources: <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15">SEC stop-order risks</a> · <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec">SEC daily-reset ETF risks</a>. The data produced by the radar are dated, indicative screening observations; no automated options or event feed is represented here.</div>
+</main><script src="trade-gate.js"></script><script>
+const $=id=>document.getElementById(id),numberIds=["entry","stop","target1","quantity","entryFee","exitFee","roundTripSlipPerShare","cashUSD","maxLossUSD"];
+const boolIds=[...SwingExecutionGate.REQUIRED,"overnightHold","gapRiskAccepted","eventBeforeExit","eventRiskPlanVerified","countertrendRiskAccepted"];
+let report="",context="";
+function state(){
+ const v={vehicleType:$("vehicleType").value,setupType:$("setupType").value,plannedSession:$("plannedSession").value,stopCoverage:$("stopCoverage").value};
+ for(const k of numberIds){const val=$(k).value.trim();v[k]=val===""?NaN:Number(val)}
+ for(const k of boolIds)v[k]=$(k).checked;
+ return v;
+}
+function render(){
+ const v=state(),res=SwingExecutionGate.evaluate(v),c=res.calculations;
+ const ok=res.status.startsWith("CONDITIONALLY");
+ const f=n=>n==null?"—":"$"+Number(n).toFixed(2);
+ let html="<h2>"+res.status+"</h2>";
+ if(c)html+='<div class="stats">'+[["Cash required",f(c.cashNeeded)],["Net planned risk",f(c.netRisk)],["Net first target",f(c.netReward)],["First-target R:R",String(c.netRR)+"R"],["Fees + slippage",f(c.fees+c.roundTripSlip)]].map(a=>'<div class="stat">'+a[0]+'<strong>'+a[1]+'</strong></div>').join("")+'</div>';
+ if(res.errors.length)html+="<p><b>Do not trade until resolved:</b></p><ul>"+res.errors.map(e=>"<li>"+e+"</li>").join("")+"</ul>";
+ if(ok)html+='<p>This is only a <b>self-attested candidate</b>. Verify actual quote, broker conditions, screenshot levels and risk limits again immediately before an order. No order is placed here.</p>';
+ $("result").className="readout"+(ok?" ok":"");$("result").innerHTML=html;
+ report=["Trade decision: "+res.status,"Underlying: "+$("ticker").value.toUpperCase(),"Purchased: "+$("vehicle").value.toUpperCase(),"Type: "+v.vehicleType,"Setup: "+v.setupType,"Quote / entry / stop / TP1: "+[v.entry,v.stop,v.target1].join(" / "),"Shares: "+v.quantity,"Fee+slippage: "+(c?f(c.fees+c.roundTripSlip):"N/A"),"Estimated net risk: "+(c?f(c.netRisk):"N/A"),"Estimated TP1 net reward: "+(c?f(c.netReward):"N/A"),"Net R:R: "+(c?c.netRR+"R":"N/A"),"Intended session: "+v.plannedSession,"Stop coverage: "+v.stopCoverage,"Research context: "+context,"Thesis: "+$("hypothesis").value,"Nearest target evidence: "+$("evidence").value,"Unresolved: "+res.errors.join("; "),"No orders placed"].join("\n");
+}
+async function prefillResearch(){
+ const qs=new URLSearchParams(location.search);const ticker=(qs.get("ticker")||"").toUpperCase(),sector=(qs.get("sector")||"").toUpperCase();
+ if(ticker)$("ticker").value=ticker;if(ticker)$("vehicle").value=ticker;
+ if(!/^[A-Z]{2,5}$/.test(sector)||!/^[A-Z0-9.-]{1,10}$/.test(ticker))return;
+ try{const t=Date.now(),[a,b]=await Promise.all([fetch("data/rrg-core.json?"+t,{cache:"no-store"}),fetch("data/stocks/"+sector+".json?"+t,{cache:"no-store"})]);if(!a.ok||!b.ok)throw Error("Missing sector data");const core=await a.json(),data=await b.json();if(core.generated_at!==data.generated_at||!core.universes.stock_members[sector].includes(ticker))throw Error("Snapshot or membership mismatch");const d=data.timeframes["1D"].price_context[ticker];if(!d)throw Error("No price context");context=ticker+" / "+sector+"; 1D completed "+d.session+", raw close $"+d.close+", EMA10 $"+d.ema10+", EMA20 $"+d.ema20+", close-only state "+d.state;$("contextStatus").textContent=context+". This is NOT a live price, a stop, or an order target."; }catch(e){context="RESEARCH NOT VERIFIED: "+e.message;$("contextStatus").textContent=context;}
+}
+$("plan").addEventListener("submit",e=>{e.preventDefault();render()});$("copy").addEventListener("click",()=>{render();if(navigator.clipboard)navigator.clipboard.writeText(report).then(()=>$("copy").textContent="Copied decision card").catch(()=>$("copy").textContent="Copy unavailable");});$("plan").addEventListener("reset",()=>{setTimeout(render,0)});prefillResearch();
+</script></body></html>

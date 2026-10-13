@@ -27,3 +27,8 @@ assert.equal(lib.quadrant({ratio:99,momentum:101}),'Improving');
 assert.equal(lib.quadrant({ratio:101,momentum:99}),'Weakening');
 assert.equal(lib.quadrant({ratio:99,momentum:99}),'Lagging');
 console.log('STOCK LEADERSHIP VALIDATED: '+count+' individual tickers across 11 sectors including all 10 healthcare names; stale, missing, mismatched and future sessions fail closed');
+
+const html=fs.readFileSync('stock-leadership.html','utf8');
+for(const tag of ['id="sector"','id="filter"','id="rows"','id="session"','stock-leadership.js'])assert.ok(html.includes(tag),'Missing stock leadership UI '+tag);
+for(const m of html.matchAll(/<script(?:[^>]*?)>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
+console.log('Stock Leadership frontend inline-script syntax and controls validated');

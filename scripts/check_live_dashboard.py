@@ -13,7 +13,7 @@ FILES = [
     'index.html', 'desk-home.css', 'desk-health.js', 'data/release-manifest.json',
     'data/journal-performance.json', 'equity.html', 'calendar.html',
     'data/rrg-core.json', 'data/rrg-audit.json', 'data/sector-breadth.json',
-    'rrg.html', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js',
+    'rrg.html', 'data/rrg-reference-trajectory-audit.json', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js',
     'stock-leadership.html', 'stock-leadership.js', 'trade-gate.html', 'trade-gate.js',
     *(f'data/stocks/{sector}.json' for sector in STOCK_SECTORS),
 ]

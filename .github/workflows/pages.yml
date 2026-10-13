@@ -46,6 +46,21 @@ jobs:
       - name: Assess RRG parameter sensitivity
         run: python scripts/rrg_sensitivity.py
 
+      - name: Test sector comparison rules for every pair
+        run: python -m unittest discover -s scripts -p "test_sector_breadth.py"
+
+      - name: Test breadth feed and confirmation UI
+        run: |
+          node scripts/test_breadth_confirmation.cjs
+          node --check breadth-feed.js
+          node --check breadth-confirmation.js
+
+      - name: Build equal-weight sector comparison
+        run: python scripts/build_sector_breadth.py
+
+      - name: Validate every ticker and timeframe
+        run: python scripts/audit_market_universe.py
+
       - name: Sync swing journal equity and P/L calendar
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -62,3 +77,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify deployed dashboard data
+        run: python scripts/check_live_dashboard.py "${{ steps.deployment.outputs.page_url }}"

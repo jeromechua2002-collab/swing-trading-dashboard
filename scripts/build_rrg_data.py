@@ -27,9 +27,9 @@ INDUSTRY_GROUPS = {
 # First stock drill-down universe. The UI keeps these behind the Stocks layer,
 # so the weekly sector/industry RRGs stay clean.
 STOCK_GROUPS = {
-    "XLK": ["NVDA", "AAPL", "MSFT", "AVGO", "ORCL", "AMD", "CSCO", "IBM", "INTC", "QCOM", "CRM", "ADBE"],
+    "XLK": ["NVDA", "AAPL", "MSFT", "AVGO", "ORCL", "AMD", "PANW", "CRWD", "CSCO", "IBM", "INTC", "QCOM", "CRM", "ADBE"],
     "XLY": ["AMZN", "TSLA", "HD", "MCD", "BKNG", "LOW", "TJX", "NKE", "SBUX", "ORLY"],
-    "XLC": ["META", "GOOGL", "NFLX", "TMUS", "DIS", "T", "VZ", "APP", "TTWO", "CHTR"],
+    "XLC": ["META", "GOOGL", "GOOG", "NFLX", "TMUS", "DIS", "T", "VZ", "APP", "TTWO", "CHTR"],
     "XLF": ["BRK-B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "AXP", "C"],
     "XLI": ["GE", "CAT", "RTX", "UBER", "DE", "HON", "UNP", "ETN", "UPS", "BA"],
     "XLB": ["LIN", "SHW", "APD", "FCX", "ECL", "NEM", "NUE", "DOW", "MLM", "VMC"],
@@ -501,6 +501,7 @@ def main() -> None:
             "sectors": SECTOR_GROUPS,
             "industries": INDUSTRY_GROUPS,
             "stock_sectors": list(STOCK_GROUPS.keys()),
+            "stock_members": STOCK_GROUPS,
         },
         "timeframes": {
             tf: {

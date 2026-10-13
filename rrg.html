@@ -66,6 +66,7 @@ body{overflow-x:hidden}
     <a id="tabSectors" href="rrg.html?mode=sectors">Sector RRG</a>
     <a id="tabIndustries" href="rrg.html?mode=industries">Industry RRG</a>
     <a id="tabStocks" href="rrg.html?mode=stocks&sector=XLK">Stock RRG</a>
+    <a href="sector-breadth.html">Sector Breadth</a>
   </nav>
 </div></header>
 
@@ -528,7 +529,7 @@ function renderHealth(){
   const tfh=payload.health||{};
   const expectedIndustries=Object.values(payload.universes.industries||{}).flat().length;
   const active=tfh[tf]||{};
-  const expectedStocks=112;
+  const expectedStocks=Object.values(payload.universes.stock_members||{}).flat().length || 112;
   const coverageOk=(
     active.sector_coverage===11 &&
     active.industry_coverage===expectedIndustries &&

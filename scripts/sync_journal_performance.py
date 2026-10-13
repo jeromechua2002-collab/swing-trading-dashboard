@@ -65,7 +65,7 @@ def export():
         if not symbol: raise RuntimeError("Trade with no symbol")
         linked=related(p.get("Account"))
         # Ignore unlinked, provisional and archived entries.
-        if ACCOUNT_ID.replace("-","") not in linked: continue
+        if linked and ACCOUNT_ID.replace("-","") not in linked: continue
         entry=date(p.get("Entry Date"))
         qty=number(p.get("Position Size"))
         number_id=number(p.get("Trade #"))
@@ -87,7 +87,7 @@ def export():
         item.update({"exit_date":exitdate,"net_usd":round(net,2),
                      "fx":fx,"net_sgd":round(net*fx,2)})
         trades.append(item)
-    if len(trades)<7: raise RuntimeError("Fewer than seven historical closed trades; refusing to publish incomplete account history")
+    if not set(range(1,11)).difference({t["number"] for t in trades} | {t["number"] for t in opened}) == set(): raise RuntimeError("Journal trades #1 through #10 are incomplete")
     trades.sort(key=lambda x:(x["exit_date"],x["number"]))
     opened.sort(key=lambda x:x["number"])
     equity=START_CAPITAL

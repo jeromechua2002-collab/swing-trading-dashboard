@@ -1,0 +1,25 @@
+name: Verify swing journal curve and P/L calendar
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/journal-performance.json"
+      - "scripts/sync_journal_performance.py"
+      - "scripts/test_journal_snapshot.py"
+      - ".github/workflows/journal-audit.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check Notion journal exporter Python syntax
+        run: python -m py_compile scripts/sync_journal_performance.py
+      - name: Reconcile every equity point and trading calendar day
+        run: python scripts/test_journal_snapshot.py

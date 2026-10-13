@@ -68,8 +68,28 @@ def run():
         frame=page.frame_locator("#notion-simulator")
         frame.locator("#rows tr").first.wait_for(timeout=20000)
         assert "NO VALID SIGNAL" not in frame.locator("#status").inner_text()
+        # Public journal views: percentages only, never currency or positions.
+        page.goto(BASE+"equity.html",wait_until="domcontentloaded")
+        page.wait_for_function("document.querySelector('#index').textContent !== '—'",timeout=15000)
+        page.goto(BASE+"calendar.html",wait_until="domcontentloaded")
+        page.wait_for_function("document.querySelector('#status').textContent.includes('closed trades')",timeout=15000)
+        assert page.locator(".day .total").count()>=1
         assert not errors, "Unhandled script errors: "+repr(errors[:8])
-        print("CHROMIUM DASHBOARD SMOKE PASSED: 11 stock sectors, 2 ETF RRGs, 3 stock RRGs, sector breadth, journal, index and embedded iframe")
+        mobile=browser.new_page(viewport={"width":375,"height":812},is_mobile=True,has_touch=True)
+        mobile.on("pageerror",lambda err:errors.append(str(err)))
+        mobile.route("**/*", lambda route: route.continue_() if route.request.url.startswith(BASE) else route.abort())
+        for path,ready in (("index.html","document.querySelector('#releaseBadge').textContent !== 'Checking publication…'"),
+                           ("equity.html","document.querySelector('#index').textContent !== '—'"),
+                           ("calendar.html","document.querySelector('#status').textContent.includes('closed trades')")):
+            mobile.goto(BASE+path,wait_until="domcontentloaded")
+            mobile.wait_for_function(ready,timeout=16000)
+            assert "S$" not in mobile.locator("body").inner_text(),(path,"currency shown on a public journal view")
+            if path=="index.html":
+                assert "/" not in mobile.locator("#tradeCount").inner_text(),"open-position count shown on home page"
+            if path!="index.html":
+                assert mobile.evaluate("document.documentElement.scrollWidth<=innerWidth+1"),(path,"horizontal overflow at 375px")
+        assert not errors, "Unhandled script errors: "+repr(errors[:8])
+        print("CHROMIUM DASHBOARD SMOKE PASSED: 11 stock sectors, 2 ETF RRGs, 3 stock RRGs, sector breadth, journal, index, embedded iframe, percent-only journal views and 375px mobile journal pages")
         browser.close()
 
 if __name__=="__main__":run()

@@ -1,298 +1,68 @@
 {
+  "schema": "public-journal-v2",
   "updated_at": "2026-10-13T16:01:19.460Z",
-  "snapshot_kind": "manual_verified_pending_reconciliation",
-  "source": "Notion Swing Journal; broker-reported SOXL #10 and SOXS #11 realized USD P/L; journal FX field converted to SGD. Exit fills/fees stored with reconciliation flags.",
-  "starting_capital_sgd": 5000,
-  "current_equity_sgd": 5105.19,
-  "realized_pnl_sgd": 105.19,
-  "return_pct": 2.1,
-  "closed_trades": [
-    {
-      "number": 1,
-      "symbol": "RAM",
-      "exit_date": "2026-10-02",
-      "net_usd": 14.25,
-      "fx": 1.2786,
-      "net_sgd": 18.22
-    },
-    {
-      "number": 2,
-      "symbol": "DAMD",
-      "exit_date": "2026-10-02",
-      "net_usd": 23.15,
-      "fx": 1.2786,
-      "net_sgd": 29.6
-    },
-    {
-      "number": 3,
-      "symbol": "SOXS",
-      "exit_date": "2026-10-07",
-      "net_usd": 225.26,
-      "fx": 1.28009,
-      "net_sgd": 288.35
-    },
-    {
-      "number": 4,
-      "symbol": "SOXL",
-      "exit_date": "2026-10-08",
-      "net_usd": -77.53,
-      "fx": 1.28009,
-      "net_sgd": -99.25
-    },
-    {
-      "number": 5,
-      "symbol": "SOXS",
-      "exit_date": "2026-10-08",
-      "net_usd": -82.97,
-      "fx": 1.28009,
-      "net_sgd": -106.21
-    },
-    {
-      "number": 6,
-      "symbol": "MUZ",
-      "exit_date": "2026-10-08",
-      "net_usd": 125.75,
-      "fx": 1.28009,
-      "net_sgd": 160.97
-    },
-    {
-      "number": 7,
-      "symbol": "SOXL",
-      "exit_date": "2026-10-09",
-      "net_usd": -67.59,
-      "fx": 1.28,
-      "net_sgd": -86.52
-    },
-    {
-      "number": 8,
-      "symbol": "AMZU",
-      "exit_date": "2026-10-12",
-      "net_usd": -27.83,
-      "fx": 1.28,
-      "net_sgd": -35.62
-    },
-    {
-      "number": 10,
-      "symbol": "SOXL",
-      "exit_date": "2026-10-13",
-      "entry_date": "2026-10-12",
-      "size": 20,
-      "entry_price": 128.11,
-      "exit_price": 122.2,
-      "net_usd": -120.52,
-      "fx": 1.28,
-      "net_sgd": -154.27,
-      "notes": "User reported net P/L -120.52; prices and $4.52 stated fees imply -122.72; $2.20 unresolved difference."
-    },
-    {
-      "number": 11,
-      "id": "3f81e381-ccd7-81c3-ac6c-f9d1470f37b4",
-      "symbol": "SOXS",
-      "status": "Closed",
-      "entry_date": "2026-10-13",
-      "exit_date": "2026-10-13",
-      "size": 100,
-      "entry_price": 39.06,
-      "exit_price": 39.815,
-      "exits": [
-        {
-          "quantity": 50,
-          "price": 40.09,
-          "proceeds_usd": 2004.5,
-          "realized_broker_usd": 48.87,
-          "fees_usd": 2.38,
-          "time_sgt": "2026-10-13T23:30:22+08:00"
-        },
-        {
-          "quantity": 50,
-          "price": 39.54,
-          "proceeds_usd": 1977,
-          "realized_broker_usd": 21.38,
-          "fees_usd": 2.38,
-          "time_sgt": "2026-10-13T23:54:02+08:00"
-        }
-      ],
-      "entry_fees_usd": 2.5,
-      "exit_fees_usd": 4.76,
-      "fees_usd": 7.26,
-      "net_usd": 70.25,
-      "fx": 1.28,
-      "net_sgd": 89.92,
-      "fill_based_net_usd": 68.24,
-      "broker_reconciliation_difference_usd": 2.01,
-      "notes": "Exit fills and broker realized P/L directly from user Tiger screenshot; broker P/L +$70.25 is reported value. Fill arithmetic 100×39.06 cost; proceeds 2004.50+1977.00; listed fees 2.50+2.38+2.38 imply +$68.24, unexplained difference +$2.01. Provisional 1.28 FX; do not deduct fees twice.",
-      "url": "https://app.notion.com/p/3f81e381ccd781c3ac6cf9d1470f37b4"
-    }
-  ],
-  "open_trades": [
-    {
-      "number": 9,
-      "symbol": "AMZU",
-      "status": "Open",
-      "size": 40,
-      "entry_price": 37.2,
-      "entry_date": "2026-10-12"
-    }
-  ],
+  "source_status": "manual_snapshot",
+  "basis": "Closed trades only, aggregated by exit date. Equity index starts at 100; returns are percentages of account equity. No positions, symbols, prices, sizes, fees or monetary amounts are published.",
+  "closed_trade_count": 10,
+  "winning_trades": 5,
+  "losing_trades": 5,
+  "breakeven_trades": 0,
+  "realized_return_pct": 2.104,
+  "last_closed_date": "2026-10-13",
   "curve": [
     {
       "date": "2026-09-30",
-      "equity_sgd": 5000,
-      "number": 0,
-      "symbol": "Start",
-      "net_sgd": 0
+      "index": 100.0
     },
     {
       "date": "2026-10-02",
-      "equity_sgd": 5018.22,
-      "number": 1,
-      "symbol": "RAM",
-      "net_sgd": 18.22
-    },
-    {
-      "date": "2026-10-02",
-      "equity_sgd": 5047.82,
-      "number": 2,
-      "symbol": "DAMD",
-      "net_sgd": 29.6
+      "index": 100.9564
     },
     {
       "date": "2026-10-07",
-      "equity_sgd": 5336.17,
-      "number": 3,
-      "symbol": "SOXS",
-      "net_sgd": 288.35
+      "index": 106.7234
     },
     {
       "date": "2026-10-08",
-      "equity_sgd": 5236.92,
-      "number": 4,
-      "symbol": "SOXL",
-      "net_sgd": -99.25
-    },
-    {
-      "date": "2026-10-08",
-      "equity_sgd": 5130.71,
-      "number": 5,
-      "symbol": "SOXS",
-      "net_sgd": -106.21
-    },
-    {
-      "date": "2026-10-08",
-      "equity_sgd": 5291.68,
-      "number": 6,
-      "symbol": "MUZ",
-      "net_sgd": 160.97
+      "index": 105.8336
     },
     {
       "date": "2026-10-09",
-      "equity_sgd": 5205.16,
-      "number": 7,
-      "symbol": "SOXL",
-      "net_sgd": -86.52
+      "index": 104.1032
     },
     {
       "date": "2026-10-12",
-      "equity_sgd": 5169.54,
-      "number": 8,
-      "symbol": "AMZU",
-      "net_sgd": -35.62
+      "index": 103.3908
     },
     {
       "date": "2026-10-13",
-      "equity_sgd": 5015.27,
-      "number": 10,
-      "symbol": "SOXL",
-      "net_sgd": -154.27
-    },
-    {
-      "date": "2026-10-13",
-      "equity_sgd": 5105.19,
-      "number": 11,
-      "symbol": "SOXS",
-      "net_sgd": 89.92
+      "index": 102.1038
     }
   ],
   "calendar": {
     "2026-10-02": {
-      "net_sgd": 47.82,
-      "trades": [
-        {
-          "number": 1,
-          "symbol": "RAM",
-          "net_sgd": 18.22
-        },
-        {
-          "number": 2,
-          "symbol": "DAMD",
-          "net_sgd": 29.6
-        }
-      ]
+      "return_pct": 0.956,
+      "closed_trades": 2
     },
     "2026-10-07": {
-      "net_sgd": 288.35,
-      "trades": [
-        {
-          "number": 3,
-          "symbol": "SOXS",
-          "net_sgd": 288.35
-        }
-      ]
+      "return_pct": 5.712,
+      "closed_trades": 1
     },
     "2026-10-08": {
-      "net_sgd": -44.49,
-      "trades": [
-        {
-          "number": 4,
-          "symbol": "SOXL",
-          "net_sgd": -99.25
-        },
-        {
-          "number": 5,
-          "symbol": "SOXS",
-          "net_sgd": -106.21
-        },
-        {
-          "number": 6,
-          "symbol": "MUZ",
-          "net_sgd": 160.97
-        }
-      ]
+      "return_pct": -0.834,
+      "closed_trades": 3
     },
     "2026-10-09": {
-      "net_sgd": -86.52,
-      "trades": [
-        {
-          "number": 7,
-          "symbol": "SOXL",
-          "net_sgd": -86.52
-        }
-      ]
+      "return_pct": -1.635,
+      "closed_trades": 1
     },
     "2026-10-12": {
-      "net_sgd": -35.62,
-      "trades": [
-        {
-          "number": 8,
-          "symbol": "AMZU",
-          "net_sgd": -35.62
-        }
-      ]
+      "return_pct": -0.684,
+      "closed_trades": 1
     },
     "2026-10-13": {
-      "net_sgd": -64.35,
-      "trades": [
-        {
-          "number": 10,
-          "symbol": "SOXL",
-          "net_sgd": -154.27
-        },
-        {
-          "number": 11,
-          "symbol": "SOXS",
-          "net_sgd": 89.92
-        }
-      ]
+      "return_pct": -1.245,
+      "closed_trades": 2
     }
   }
 }

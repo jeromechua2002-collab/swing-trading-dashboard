@@ -9,6 +9,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from journal_public import validate_public
+
 
 def parse_time(value):
     if not isinstance(value, str):
@@ -62,17 +64,14 @@ def create(root=Path("."), now=None):
             frame = d["timeframes"][tf]
             if set(frame.get("price_context", {})) != set(members):
                 raise ValueError(f"{sector} {tf}: incomplete absolute price context")
-    closed, opened = journal["closed_trades"], journal["open_trades"]
-    if len(closed) < 10 or len(journal["curve"]) != len(closed) + 1:
+    # The public journal is percentage-only and closed-trade-only by contract.
+    validate_public(journal)
+    if journal["closed_trade_count"] < 10:
         raise ValueError("Journal equity curve incomplete")
-    if abs(journal["curve"][-1]["equity_sgd"] - journal["current_equity_sgd"]) > 0.005:
-        raise ValueError("Journal equity/curve mismatch")
     journal_stamp = parse_time(journal["updated_at"])
     if journal_stamp > now:
         raise ValueError("Future journal timestamp")
-    manual = journal.get("snapshot_kind", "").startswith("manual")
-    journal_state = "manual_snapshot" if manual else "notion_sync"
-    latest_exit = max((t["exit_date"] for t in closed), default=None)
+    journal_state = journal["source_status"]
     hashes = {key: hashlib.sha256((root / path).read_bytes()).hexdigest()
               for key, path in files.items()}
     return {
@@ -93,16 +92,14 @@ def create(root=Path("."), now=None):
         },
         "journal_status": journal_state,
         "journal_generated_at": journal["updated_at"],
-        "journal_last_closed_trade": latest_exit,
-        "journal_closed_count": len(closed),
-        "journal_open_count": len(opened),
-        "journal_equity_sgd": journal["current_equity_sgd"],
-        "journal_latest_trade": max((t["number"] for t in closed), default=0),
+        "journal_last_closed_trade": journal["last_closed_date"],
+        "journal_closed_count": journal["closed_trade_count"],
+        "journal_return_pct": journal["realized_return_pct"],
         "sha256": hashes,
         "caveats": [
             "Daily bars are completed sessions; not intraday real-time quotes",
             "RRG is an approximation; 4H bars may differ from TradingView",
-            "Manually recorded broker outcomes and FX rates require reconciliation",
+            "Journal is closed-trade, percentage-only; detailed records stay private in Notion",
         ]
     }
 
@@ -113,4 +110,4 @@ if __name__ == "__main__":
     path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
     print(f"RELEASE CONTRACT OK: {out['rrg_session']}, "
           f"{out['market_coverage']}, journal={out['journal_status']}, "
-          f"closed={out['journal_closed_count']}, open={out['journal_open_count']}")
+          f"closed={out['journal_closed_count']}")

@@ -13,8 +13,10 @@
    if(breadth?.status!=="ok"||breadth?.rows?.length!==11||new Set(breadth.rows.map(x=>x.cap)).size!==11||names.some(n=>!breadth.rows.some(x=>x.cap===n)))throw Error("Sector breadth pairs incomplete");
    if(manifest.market_generated_at!==rrg.generated_at||!manifest.journal_generated_at||manifest.journal_generated_at!==journal.updated_at)throw Error("Release/data generation times differ");
    if(manifest.market_coverage?.stocks!==116||manifest.market_coverage?.industries!==16||manifest.market_coverage?.breadth_pairs!==11||manifest.market_coverage?.timeframes!==4)throw Error("Manifest declares incomplete market coverage");
-   if(!Array.isArray(journal?.closed_trades)||!Array.isArray(journal?.open_trades)||!journal.curve?.length)throw Error("Journal missing");
-   if(journal.closed_trades.length!==manifest.journal_closed_count||journal.open_trades.length!==manifest.journal_open_count||Math.abs(journal.current_equity_sgd-manifest.journal_equity_sgd)>0.005||Math.abs(journal.curve.at(-1).equity_sgd-journal.current_equity_sgd)>0.005)throw Error("Journal curve/manifest mismatch");
+   // Public journal: closed-trade, percentage-only payload (no positions or money).
+   if(journal?.schema!=="public-journal-v2"||!Number.isInteger(journal.closed_trade_count)||!Array.isArray(journal.curve)||!journal.curve.length)throw Error("Journal missing");
+   if(journal.closed_trade_count!==manifest.journal_closed_count||Math.abs(journal.realized_return_pct-manifest.journal_return_pct)>0.0005||Math.abs((journal.curve.at(-1).index-100)-journal.realized_return_pct)>0.001)throw Error("Journal curve/manifest mismatch");
+   if(journal.source_status!==manifest.journal_status)throw Error("Journal provenance mismatch");
    if(!["manual_snapshot","notion_sync"].includes(manifest.journal_status))throw Error("Unknown journal sync provenance");
    for(const [k,v] of Object.entries(manifest.sha256||{})){
      if(!/^[0-9a-f]{64}$/.test(v)||digests?.[k]!==v)throw Error("Release integrity hash mismatch for "+k);
@@ -34,10 +36,9 @@
      stocks:count,
      sectors:names.length,
      industries:16,
-     equity:journal.current_equity_sgd,
-     realized:journal.realized_pnl_sgd,
-     closed:journal.closed_trades.length,
-     open:journal.open_trades.length,
+     returnPct:journal.realized_return_pct,
+     equityIndex:journal.curve.at(-1).index,
+     closed:journal.closed_trade_count,
      marketGenerated:manifest.market_generated_at,
      journalGenerated:journal.updated_at,
      lastClosed:manifest.journal_last_closed_trade,

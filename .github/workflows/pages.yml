@@ -64,6 +64,15 @@ jobs:
       - name: Install market-data dependencies
         run: pip install --disable-pip-version-check -r requirements.txt
 
+      - name: Unit-test release provenance and data coherence
+        run: python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
+
+      - name: Test research cockpit and data health UI
+        run: |
+          node --check desk-health.js
+          node scripts/test_desk_health.cjs
+          node scripts/test_desk_home.cjs
+
       - name: Unit-test absolute price data hygiene
         run: python -m unittest discover -s scripts -p 'test_price_context.py' -v
 
@@ -108,6 +117,12 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/sync_journal_performance.py
+
+      - name: Reconcile every journal equity curve and P/L calendar event
+        run: python scripts/test_journal_snapshot.py
+
+      - name: Build fail-closed release manifest for all public dashboards
+        run: python scripts/build_release_manifest.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -86,8 +86,43 @@ def export():
         if fx is None or fx<=0: raise RuntimeError(f"Missing FX on closed trade #{number_id}")
         item.update({"exit_date":exitdate,"net_usd":round(net,2),
                      "fx":fx,"net_sgd":round(net*fx,2)})
+        # Preserve the factual partial fills, explicit fees, and any broker
+        # P/L reconciliation difference instead of losing them on refresh.
+        fills=[]
+        for n in (1,2):
+            q=number(p.get(f"Exit {n} Qty"))
+            px=number(p.get(f"Exit {n} Price"))
+            if (q is None) != (px is None):
+                raise RuntimeError(f"Trade #{number_id} has incomplete exit leg {n}")
+            if q is not None:
+                if q<=0 or px<=0:
+                    raise RuntimeError(f"Trade #{number_id} has invalid exit leg {n}")
+                fills.append({"quantity":q,"price":px})
+        if fills:
+            if qty is None or abs(sum(z["quantity"] for z in fills)-qty)>1e-6:
+                raise RuntimeError(f"Trade #{number_id} exit lots do not reconcile to position")
+            item["exits"]=fills
+        for field,key in [
+            ("Entry Fee Charges USD","entry_fees_usd"),
+            ("Exit Fee Charges USD","exit_fees_usd"),
+            ("Fee Charges USD","fees_usd"),
+            ("Gross P/L USD","gross_pl_usd"),
+        ]:
+            value=number(p.get(field))
+            if value is not None:
+                item[key]=value
+        if fills and item["entry_price"] is not None and item.get("fees_usd") is not None:
+            cash_flow=sum(z["quantity"]*z["price"] for z in fills)-qty*item["entry_price"]
+            item["fill_based_net_usd"]=round(cash_flow-item["fees_usd"],2)
+            item["broker_reconciliation_difference_usd"]=round(item["net_usd"]-item["fill_based_net_usd"],2)
+            if abs(item["broker_reconciliation_difference_usd"])>0.01:
+                print(f"::warning::Trade #{number_id} {symbol} broker P/L differs from fill/fee arithmetic by USD {item['broker_reconciliation_difference_usd']:.2f}; broker-reported P/L retained")
         trades.append(item)
-    if not set(range(1,11)).difference({t["number"] for t in trades} | {t["number"] for t in opened}) == set(): raise RuntimeError("Journal trades #1 through #10 are incomplete")
+    # The closed history now includes trade #11. Never publish an equity
+    # curve that silently drops a confirmed historical numbered trade.
+    missing = set(range(1, 12)) - ({t["number"] for t in trades} | {t["number"] for t in opened})
+    if missing:
+        raise RuntimeError(f"Verified journal trades missing: {sorted(missing)}")
     trades.sort(key=lambda x:(x["exit_date"],x["number"]))
     opened.sort(key=lambda x:x["number"])
     equity=START_CAPITAL

@@ -51,6 +51,17 @@ function rank(core,file,sector,now=Date.now()){
        row[tf+"_"+basis]=head;
      }
    }
+   for(const tf of tfNames){
+     const price=file?.timeframes?.[tf]?.price_context?.[ticker];
+     if(!price||price.session!==expected[tf]||!["Uptrend","Downtrend","Mixed"].includes(price.state))throw Error(ticker+" "+tf+": incomplete/unsynchronized absolute price context");
+     for(const key of ["close","ema10","ema20","prior20_close_high","prior20_close_low","distance_to_prior20_close_high_pct","return5_pct","return20_pct"]){
+       if(!Number.isFinite(price[key])||(["close","ema10","ema20","prior20_close_high","prior20_close_low"].includes(key)&&price[key]<=0))throw Error(ticker+" "+tf+": invalid price field "+key);
+     }
+     if(price.prior20_close_low>price.prior20_close_high)throw Error(ticker+" "+tf+": inverted close-only range");
+     if(typeof price.ema10_rising!=="boolean"||typeof price.ema20_rising!=="boolean")throw Error(ticker+" "+tf+": invalid EMA slopes");
+     row[tf+"_price"]=price;
+   }
+   row.absolute_alignment=row["1D_price"].state==="Uptrend"&&row["4H_price"].state==="Uptrend"?"Daily + 4H absolute uptrend":row["1D_price"].state==="Downtrend"&&row["4H_price"].state==="Downtrend"?"Daily + 4H absolute downtrend":"Mixed price horizons";
    row.phase=phase(row["1D_sector"],row["4H_sector"]);
    out.push(row);
  }

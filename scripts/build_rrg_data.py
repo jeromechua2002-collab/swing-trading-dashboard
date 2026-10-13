@@ -135,19 +135,47 @@ def iso_label(ts) -> str:
 
 
 def synthetic_hour_bars(s: pd.Series, hours: int) -> pd.Series:
-    """Aggregate intraday closes into sequential N-hour bars within each session."""
+    """Aggregate consistently anchored US session hours into completed N-hour bars.
+
+    A missing quote must not shift every later N-hour bucket for one ticker.
+    For 4H on the 6.5-hour US cash session, the final 2.5-hour bucket is
+    treated as completed only after the session's normal final bar exists.
+    """
     s = s.dropna().sort_index()
     if s.empty or hours <= 1:
         return s
+    local = s.copy()
+    if local.index.tz is None:
+        local.index = local.index.tz_localize("UTC")
+    local.index = local.index.tz_convert("America/New_York")
     parts = []
-    for _, day in s.groupby(s.index.date):
+    for _, day in local.groupby(local.index.date):
         day = day.sort_index()
-        groups = np.arange(len(day)) // hours
-        agg = day.groupby(groups).last()
-        times = [day.index[min((i + 1) * hours, len(day)) - 1] for i in range(len(agg))]
-        agg.index = pd.DatetimeIndex(times)
-        parts.append(agg)
-    return pd.concat(parts).sort_index() if parts else s.iloc[0:0]
+        start = day.index[0].normalize() + pd.Timedelta(hours=9, minutes=30)
+        offsets = (day.index - start).total_seconds() / 3600.0
+        # A fixed market-open anchor prevents missing hourly candles from
+        # changing which 4-hour bucket a quote belongs to.
+        buckets = np.floor(np.maximum(offsets, 0) / hours).astype(int)
+        for bucket in sorted(set(buckets)):
+            block = day.iloc[np.where(buckets == bucket)[0]]
+            if block.empty:
+                continue
+            # Timestamp by the market schedule, not the ticker's last tick.
+            # A partial bar only at the current edge is left out below.
+            if bucket == 0:
+                stamp = start + pd.Timedelta(hours=hours - 1)
+                expected = hours
+            else:
+                stamp = start + pd.Timedelta(hours=6)
+                expected = 2  # final US session hour samples: 13:30, 14:30, 15:30
+            if len(block) < expected:
+                continue
+            parts.append((stamp, float(block.iloc[-1])))
+    if not parts:
+        return s.iloc[:0]
+    out = pd.Series([v for _, v in parts], index=pd.DatetimeIndex([t for t, _ in parts]))
+    return out.sort_index()
+
 
 
 def trail_payload(asset: pd.Series, benchmark: pd.Series) -> list[dict]:

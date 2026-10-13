@@ -1,0 +1,67 @@
+name: RRG and dashboard regression audit
+on:
+  push:
+    branches: ["fix/rrg-date-leadership-smoke-20261014"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install market and browser dependencies
+        run: |
+          pip install --disable-pip-version-check -r requirements.txt
+          pip install playwright==1.56.0
+          python -m playwright install chromium
+      - name: Fail on duplicate/trailing HTML or JavaScript corruption
+        run: |
+          node scripts/test_all_dashboards.cjs
+          node scripts/test_stock_leadership.cjs
+          node scripts/test_execution_gate.cjs
+      - name: Test datestamped RRG quadrant crossovers and source hygiene
+        run: |
+          python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
+          python -m unittest discover -s scripts -p 'test_sector_breadth.py' -v
+          python -m unittest discover -s scripts -p 'test_price_context.py' -v
+      - name: Rebuild 116 names across 4 timeframes
+        run: python scripts/build_rrg_data.py
+      - name: Recheck frozen EdgeRater Oct 9 baseline
+        run: python scripts/validate_rrg.py
+      - name: Rebuild equal-weight data
+        run: python scripts/build_sector_breadth.py
+      - name: Verify universe, every stock, daily and 4H trail
+        run: |
+          python scripts/audit_market_universe.py
+          node scripts/test_stock_leadership.cjs
+          node scripts/test_breadth_confirmation.cjs
+          node scripts/test_breadth_ticker_mapping.cjs
+          node scripts/test_breadth_feed.cjs data/sector-breadth.json
+      - name: Compare dated Oct 13 EdgeRater screenshots with model sessions
+        run: python scripts/audit_rrg_reference_daily.py
+      - name: Verify combined market and journal release
+        run: |
+          python scripts/test_journal_snapshot.py
+          python scripts/build_release_manifest.py
+          node scripts/test_all_dashboards.cjs
+          node scripts/test_desk_health.cjs
+      - name: Browser-test 11 stocks sectors, RRG panels, journal and Notion-like embed
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/trading-desk-http.log 2>&1 &
+          DASHBOARD_TEST_URL=http://127.0.0.1:8765/ python scripts/smoke_dashboard_browser.py
+      - name: Upload complete reference and QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dated-rrg-and-browser-smoke
+          path: |
+            data/rrg-reference-trajectory-audit.json
+            data/rrg-validation.json
+            data/rrg-core.json
+            data/release-manifest.json
+          if-no-files-found: warn

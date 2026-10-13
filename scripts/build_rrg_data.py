@@ -167,7 +167,7 @@ def synthetic_hour_bars(s: pd.Series, hours: int) -> pd.Series:
                 expected = hours
             else:
                 stamp = start + pd.Timedelta(hours=6)
-                expected = 2  # final US session hour samples: 13:30, 14:30, 15:30
+                expected = 3  # final US session hour samples: 13:30, 14:30, 15:30
             if len(block) < expected:
                 continue
             parts.append((stamp, float(block.iloc[-1])))

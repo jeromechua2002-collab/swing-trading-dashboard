@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-10-12T17:05:00Z",
-  "snapshot_kind": "manual_verified_pending_integration_access",
-  "source": "Notion closed Trades #1-8; FX for AMZU #8 provisional 1.28",
+  "updated_at": "2026-10-13T01:55:00Z",
+  "snapshot_kind": "manual_verified_pending_reconciliation",
+  "source": "Notion broker-reported closed trade net P/L; SOXL net user-reported with $2.20 arithmetic discrepancy; provisional FX 1.28",
   "starting_capital_sgd": 5000,
-  "current_equity_sgd": 5169.54,
-  "realized_pnl_sgd": 169.54,
-  "return_pct": 3.39,
+  "current_equity_sgd": 5015.27,
+  "realized_pnl_sgd": 15.27,
+  "return_pct": 0.31,
   "closed_trades": [
     {
       "number": 1,
@@ -70,6 +70,19 @@
       "net_usd": -27.83,
       "fx": 1.28,
       "net_sgd": -35.62
+    },
+    {
+      "number": 10,
+      "symbol": "SOXL",
+      "exit_date": "2026-10-13",
+      "entry_date": "2026-10-12",
+      "size": 20,
+      "entry_price": 128.11,
+      "exit_price": 122.2,
+      "net_usd": -120.52,
+      "fx": 1.28,
+      "net_sgd": -154.27,
+      "notes": "User reported net P/L -120.52; prices and $4.52 stated fees imply -122.72; $2.20 unresolved difference."
     }
   ],
   "open_trades": [
@@ -79,14 +92,6 @@
       "status": "Open",
       "size": 40,
       "entry_price": 37.2,
-      "entry_date": "2026-10-12"
-    },
-    {
-      "number": 10,
-      "symbol": "SOXL",
-      "status": "Open",
-      "size": 20,
-      "entry_price": 128.11,
       "entry_date": "2026-10-12"
     }
   ],
@@ -153,6 +158,13 @@
       "number": 8,
       "symbol": "AMZU",
       "net_sgd": -35.62
+    },
+    {
+      "date": "2026-10-13",
+      "equity_sgd": 5015.27,
+      "number": 10,
+      "symbol": "SOXL",
+      "net_sgd": -154.27
     }
   ],
   "calendar": {
@@ -218,6 +230,16 @@
           "number": 8,
           "symbol": "AMZU",
           "net_sgd": -35.62
+        }
+      ]
+    },
+    "2026-10-13": {
+      "net_sgd": -154.27,
+      "trades": [
+        {
+          "number": 10,
+          "symbol": "SOXL",
+          "net_sgd": -154.27
         }
       ]
     }

@@ -62,6 +62,11 @@ jobs:
       - name: Validate every ticker and timeframe
         run: python scripts/audit_market_universe.py
 
+      - name: Test all stock leadership rankings and timestamps
+        run: |
+          node --check stock-leadership.js
+          node scripts/test_stock_leadership.cjs
+
       - name: Sync swing journal equity and P/L calendar
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}

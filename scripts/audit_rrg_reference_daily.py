@@ -32,9 +32,12 @@ def quadrant(pt):
 
 def trail_summary(trail, reference_day):
     if len(trail) != 16: raise ValueError("Expected 16 dated RRG points")
-    dates=[pt["time"][:10] for pt in trail]
-    if dates != sorted(set(dates)):
-        raise ValueError(f"Non-unique or non-increasing tail dates: {dates}")
+    timestamps=[pt["time"] for pt in trail]
+    dates=[t[:10] for t in timestamps]
+    # 4H/1H legitimately have multiple bars on the same calendar date.
+    # Only identical or non-monotone FULL bar timestamps are invalid.
+    if timestamps != sorted(set(timestamps)):
+        raise ValueError(f"Non-unique or non-increasing tail dates: {timestamps}")
     for pt in trail:
         if not isinstance(pt["ratio"],(float,int)) or not isinstance(pt["momentum"],(float,int)):
             raise ValueError("Non-numeric RRG coordinate")

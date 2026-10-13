@@ -27,7 +27,7 @@ INDUSTRY_GROUPS = {
 # First stock drill-down universe. The UI keeps these behind the Stocks layer,
 # so the weekly sector/industry RRGs stay clean.
 STOCK_GROUPS = {
-    "XLK": ["NVDA", "AAPL", "MSFT", "AVGO", "ORCL", "AMD", "PANW", "CRWD", "CSCO", "IBM", "INTC", "QCOM", "CRM", "ADBE"],
+    "XLK": ["NVDA", "AAPL", "MSFT", "AVGO", "ORCL", "AMD", "MU", "PANW", "CRWD", "CSCO", "IBM", "INTC", "QCOM", "CRM", "ADBE"],
     "XLY": ["AMZN", "TSLA", "HD", "MCD", "BKNG", "LOW", "TJX", "NKE", "SBUX", "ORLY"],
     "XLC": ["META", "GOOGL", "GOOG", "NFLX", "TMUS", "DIS", "T", "VZ", "APP", "TTWO", "CHTR"],
     "XLF": ["BRK-B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "AXP", "C"],

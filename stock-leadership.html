@@ -24,7 +24,19 @@ if(sort==='momentum')rows.sort((a,b)=>b['1D_sector'].mom-a['1D_sector'].mom);
 if(sort==='slope')rows.sort((a,b)=>b['1D_sector'].dr-a['1D_sector'].dr);
 if(sort==='ticker')rows.sort((a,b)=>a.ticker.localeCompare(b.ticker));
 $('title').textContent=(labels[sector]||sector)+' · '+rows.length+' of '+view.rows.length+' stocks';
-$('rows').innerHTML=rows.map(r=>{const d=r['1D_sector'],h=r['4H_sector'];return '<tr><td><b>'+r.ticker+'</b><small>#'+(view.rows.indexOf(r)+1)+' by daily relative level</small></td><td>'+qHtml(d)+'</td><td>'+qHtml(h)+'</td><td>'+qHtml(r['1D_spy'])+'</td><td><span class="'+(d.dr>=0?'up':'down')+'">'+(d.dr>0?'+':'')+d.dr.toFixed(2)+'</span><small>Momentum '+(d.dm>0?'+':'')+d.dm.toFixed(2)+'</small></td><td><b>'+r['1D_price'].state+'</b><small>1D }).join('')||'<tr><td colspan="7">No tracked stocks currently fit this condition.</td></tr>';
+$('rows').innerHTML=rows.map(r=>{
+ const d=r['1D_sector'],h=r['4H_sector'],p=r['1D_price'],p4=r['4H_price'];
+ const sign=n=>n>0?'+':'';
+ const url='trade-gate.html?ticker='+encodeURIComponent(r.ticker)+'&sector='+encodeURIComponent(sector);
+ return '<tr>'+
+ '<td><b>'+r.ticker+'</b><small>#'+(view.rows.indexOf(r)+1)+' by daily relative level</small></td>'+
+ '<td>'+qHtml(d)+'</td><td>'+qHtml(h)+'</td><td>'+qHtml(r['1D_spy'])+'</td>'+
+ '<td><span class="'+(d.dr>=0?'up':'down')+'">'+sign(d.dr)+d.dr.toFixed(2)+'</span><small>Momentum '+sign(d.dm)+d.dm.toFixed(2)+'</small></td>'+
+ '<td><b>'+p.state+'</b><small>1D $'+p.close.toFixed(2)+' · EMA10 $'+p.ema10.toFixed(2)+' · EMA20 $'+p.ema20.toFixed(2)+'</small>'+
+ '<small>4H '+p4.state+' · 5D absolute '+sign(p.return5_pct)+p.return5_pct.toFixed(2)+'%</small>'+
+ '<small>Prior 20 completed closing-high $'+p.prior20_close_high.toFixed(2)+' (NOT a TP or pivot)</small></td>'+
+ '<td>'+r.phase+'<small>'+r.absolute_alignment+'</small><small><a href="'+url+'">Open trade decision gate →</a></small></td></tr>';
+}).join('')||'<tr><td colspan="7">No tracked stocks currently fit this condition.</td></tr>';
 $('session').textContent=view.session;$('fourh').textContent=view.latest_4h;
 $('generated').textContent=new Date(view.generated_at).toLocaleString();
 $('coverage').textContent=view.rows.length+'/'+core.universes.stock_members[sector].length;

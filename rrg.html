@@ -102,6 +102,8 @@ body{overflow-x:hidden}
   </div>
 </section>
 
+<section id="referenceNotice" role="status" aria-live="polite" style="margin:0 0 9px;padding:9px 12px;border:1px solid #56657a;border-left:4px solid #d6a54a;border-radius:9px;background:#20232c;color:#e4d4ac;font-size:12px;line-height:1.55">Checking the actual trading-session date against the October 13 EdgeRater screenshots…</section>
+
 <section class="benchmark-panel">
   <div class="panel-head2">
     <strong id="benchTitle">Benchmark · SPY</strong>
@@ -581,6 +583,27 @@ function fullRender(){
     trajectoryAudit.status==="SAME_DATE_DIVERGENCES"?"MODEL DIFFERENCES FLAGGED ("+trajectoryAudit.mismatches.length+")":
     trajectoryAudit.status==="SAME_DATE_QUADRANTS_AGREE"?"dated quadrant sample matched":"reference unavailable") : "";
   document.getElementById("updated").textContent="BAR AS-OF "+sourceDate+" ("+tf+") · Daily "+dailyDate+" · built "+new Date(payload.generated_at).toLocaleString()+comp;
+  const note=document.getElementById("referenceNotice");
+  if(trajectoryAudit && tf==="1D"){
+    const aud=trajectoryAudit;
+    if(aud.status==="REF_NOT_YET_AVAILABLE"){
+      note.textContent="Source date mismatch: this daily model ends "+dailyDate+"; your EdgeRater screenshots end "+aud.reference_date+". A one-session-old RRG cannot establish a late or early quadrant crossing. Recheck after the next completed-session build.";
+      note.style.borderLeftColor="#d6a54a";
+    }else if(aud.status==="SAME_DATE_DIVERGENCES"){
+      note.textContent="Same-date EdgeRater comparison: "+aud.mismatches.length+" conflicting quadrant observations (of "+aud.compared+" screenshot labels checked). This public approximation is NOT equivalent to EdgeRater; inspect the reference audit before using the signal.";
+      note.style.borderLeftColor="#ed8791";
+    }else if(aud.status==="SAME_DATE_QUADRANTS_AGREE"){
+      note.textContent="Same-date quadrant check passed for "+aud.compared+" screenshot labels. Full path shape and turning-point speed are NOT verified: proprietary EdgeRater trajectories may still differ.";
+      note.style.borderLeftColor="#68d5aa";
+    }else{
+      note.textContent="Daily model bar "+dailyDate+" · Reference "+aud.reference_date+" · historical comparison outside current trail. No parity claim.";
+      note.style.borderLeftColor="#d6a54a";
+    }
+  }else{
+    note.textContent="Source timestamps: "+tf+" benchmark bar "+sourceDate+" · daily completed bar "+dailyDate+". The daily EdgeRater screenshot comparison cannot verify intraday or weekly model equivalence.";
+    note.style.borderLeftColor="#56657a";
+  }
+
   document.getElementById("plotMeta").textContent="Benchmark "+benchmark+" · 100/100 · "+tf+" bars through "+sourceDate+" · Public approximation, not EdgeRater-native";
 
 }

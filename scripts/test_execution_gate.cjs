@@ -19,7 +19,7 @@ const blocks=[
  [{roundTripSlipPerShare:10},/eliminated by costs|below the manual/],
  [{vehicleType:"wrong"},/actual traded vehicle/]
  ];
-for(const [change,pattern] of blocks){const out=lib.evaluate({...sample(),...change});assert.notMatch(out.status,/CONDITIONALLY/);assert.ok(out.errors.some(e=>pattern.test(e)),JSON.stringify({change,out}));}
+for(const [change,pattern] of blocks){const out=lib.evaluate({...sample(),...change});assert.doesNotMatch(out.status,/CONDITIONALLY/);assert.ok(out.errors.some(e=>pattern.test(e)),JSON.stringify({change,out}));}
 const overnight=lib.evaluate({...sample(),plannedSession:"overnight",overnightHold:true,stopCoverage:"all-planned-hours",gapRiskAccepted:true});assert.match(overnight.status,/CONDITIONALLY/);
 const unprotected=lib.evaluate({...sample(),plannedSession:"RTH",overnightHold:true,stopCoverage:"RTH-only"});assert.match(unprotected.status,/BLOCKED/);
 const eventGate=lib.evaluate({...sample(),eventBeforeExit:true,eventRiskPlanVerified:false});assert.equal(eventGate.status,"BLOCKED");

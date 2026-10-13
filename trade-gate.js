@@ -1,7 +1,7 @@
 /* Deterministic, broker-agnostic pre-trade risk gate. No live execution. */
 (function(root){
  "use strict";
- const REQUIRED=["quoteChecked","underlyingChecked","pivotVerified","firstTargetVerified","triggerConfirmed","catalystChecked","stopEligibilityVerified"];
+ const REQUIRED=["marketRegimeChecked","quoteChecked","underlyingChecked","pivotVerified","firstTargetVerified","triggerConfirmed","catalystChecked","relativeVolumeChecked","liquidityChecked","stopEligibilityVerified"];
  const finitePositive=v=>typeof v==="number"&&Number.isFinite(v)&&v>0;
  function evaluate(v){
    const errors=[],pending=[];
@@ -31,6 +31,8 @@
    if(!Number.isFinite(rr)||rr<2-1e-7)errors.push("Net first-target R:R below the manual's 2.0 guideline");
    if(v.overnightHold&&v.stopCoverage!=="all-planned-hours")errors.push("Overnight hold lacks verified protection across intended hours");
    if(v.overnightHold&&!v.gapRiskAccepted)errors.push("Overnight gap risk has not been accepted");
+   if(v.eventBeforeExit&&!v.eventRiskPlanVerified)errors.push("Scheduled binary event before exit lacks a documented exposure plan");
+   if(v.setupType==="countertrend"&&!v.countertrendRiskAccepted)errors.push("Countertrend setup requires explicit higher-risk acknowledgement");
    for(const key of REQUIRED)if(v[key]!==true)pending.push(key);
    if(pending.length)errors.push("Required factual checklist not completed: "+pending.join(", "));
    return {status:errors.length?"BLOCKED":"CONDITIONALLY ELIGIBLE — MANUAL APPROVAL STILL REQUIRED",errors,pending,

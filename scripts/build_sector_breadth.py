@@ -25,11 +25,16 @@ WINDOWS = (5, 10, 20, 60)
 OUT = Path("data/sector-breadth.json")
 
 
-def daily(s):
+def daily(s, cutoff=None):
     s = s.sort_index().copy()
-    if s.empty or not np.isfinite(s).all() or (s <= 0).any():
-        raise ValueError("invalid or empty daily prices")
     s.index = pd.DatetimeIndex([pd.Timestamp(str(t)[:10], tz="UTC") for t in s.index])
+    # Yahoo can append a NaN/zero PARTIAL bar for today's trading day.
+    # Remove unfinished sessions before checking the already closed history;
+    # invalid values in any completed bar still fail the feed.
+    if cutoff is not None:
+        s = s.loc[:cutoff]
+    if s.empty or not np.isfinite(s).all() or (s <= 0).any():
+        raise ValueError("invalid or empty COMPLETED daily prices")
     if s.index.duplicated().any():
         raise ValueError("duplicate daily sessions")
     return s
@@ -37,7 +42,7 @@ def daily(s):
 
 def completed_cutoff(now):
     et = now.astimezone(ZoneInfo("America/New_York"))
-    day = et.date() if (et.hour, et.minute) >= (16, 15) else et.date() - timedelta(days=1)
+    day = et.date() if (et.hour, et.minute) >= (16, 30) else et.date() - timedelta(days=1)
     return pd.Timestamp(day, tz="UTC")
 
 
@@ -68,7 +73,7 @@ def compare_snapshot(audit, raw, adjusted, now):
     if source_age < -300 or source_age > 72 * 3600:
         raise ValueError("source build timestamp is stale or in the future")
     cutoff = completed_cutoff(now)
-    caps = {t: daily(pd.Series([r["close"] for r in rows], index=[r["time"] for r in rows], dtype=float))
+    caps = {t: daily(pd.Series([r["close"] for r in rows], index=[r["time"] for r in rows], dtype=float), cutoff)
             for t, rows in audit["prices"].items()}
     spy = caps["SPY"].loc[:cutoff]
     if spy.empty:
@@ -78,11 +83,11 @@ def compare_snapshot(audit, raw, adjusted, now):
         raise ValueError("Dashboard snapshot is stale")
     rows, errors = [], []
     equal_spy, equal_rsp, cap_spy, prices = {}, {}, {}, {}
-    raw = {t: daily(s).loc[:cutoff] for t, s in raw.items()}
+    raw = {t: daily(s, cutoff) for t, s in raw.items()}
     if raw["SPY"].index[-1] != asof:
         raise ValueError("dashboard session is stale relative to refreshed SPY")
     raw = {t: s.loc[:asof] for t, s in raw.items()}
-    adjusted = {t: daily(s).loc[:asof] for t, s in adjusted.items()}
+    adjusted = {t: daily(s, asof) for t, s in adjusted.items()}
     for ticker in ["SPY", "RSP", *PAIRS, *[v[0] for v in PAIRS.values()]]:
         s = adjusted.get(ticker)
         if s is None or s.empty or s.index[-1] != asof or len(s) < 100:

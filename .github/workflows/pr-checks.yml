@@ -1,7 +1,8 @@
 name: Pull request checks (no deploy)
 
 # Runs the release gates on a pull request WITHOUT publishing anything.
-# Uses the committed public journal snapshot; never calls Notion.
+# Uses the committed public journal snapshot; the only Notion call is a
+# read-only exporter dry run that writes to a temp file and logs counts only.
 on:
   pull_request:
     branches: ["main"]
@@ -43,6 +44,14 @@ jobs:
           node scripts/test_execution_gate.cjs
           node scripts/test_breadth_confirmation.cjs
           python scripts/test_journal_snapshot.py
+
+      - name: Dry-run journal exporter against real Notion data (counts only, nothing written)
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          JOURNAL_START_CAPITAL_SGD: ${{ secrets.JOURNAL_START_CAPITAL_SGD }}
+        run: |
+          if [ -z "$NOTION_TOKEN" ]; then echo "::notice::Secrets unavailable (fork PR); journal dry run skipped"; exit 0; fi
+          python scripts/sync_journal_performance.py --check
 
       - name: Build market data and run data-dependent audits
         run: |

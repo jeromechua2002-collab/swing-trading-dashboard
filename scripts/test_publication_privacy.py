@@ -150,12 +150,12 @@ class PublicationAllowlist(unittest.TestCase):
             self.build()
 
 
-def notion_row(number, status, exit_date=None, net=None, fx=1.3, qty=10, entry=5.0, exits=(), fees=None):
+def notion_row(number, status, exit_date=None, net=None, fx=1.3, qty=10, entry=5.0, exits=(), fees=None, account=None):
     def num(v): return {"number": v}
     props = {
         "Trade Status": {"select": {"name": status}},
         "Symbol": {"title": [{"plain_text": "SYM%d" % number}]},
-        "Account": {"relation": [{"id": sync.ACCOUNT_ID}]},
+        "Account": {"relation": [{"id": sync.ACCOUNT_ID if account is None else account}] if account != "" else []},
         "Trade #": num(number), "Position Size": num(qty), "Avg Entry": num(entry),
         "Notes": {"rich_text": [{"plain_text": "private reasoning"}]},
         "Exit Date": {"date": {"start": exit_date}} if exit_date else {"date": None},
@@ -189,6 +189,30 @@ class SyncPublishesOnlyPublicData(unittest.TestCase):
         text = json.dumps({k: v for k, v in payload.items() if k != "basis"})
         for marker in ("SYM", "private", "notion.", "1000", "open_trades", "url", "fx", "0" * 32):
             self.assertNotIn(marker, text)
+
+    def test_unlinked_or_other_account_rows_are_excluded(self):
+        rows = self.rows()
+        rows.append(notion_row(12, "Closed", "2026-10-20", net=900.0, account=""))         # empty relation
+        rows.append(notion_row(13, "Closed", "2026-10-21", net=-900.0, account="f" * 32))  # other account
+        baseline = json.loads(self.run_export(self.rows(), {"JOURNAL_START_CAPITAL_SGD": "1000"}))
+        payload = json.loads(self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"}))
+        self.assertEqual(payload["closed_trade_count"], 10)
+        self.assertEqual(payload["curve"], baseline["curve"])
+
+    def test_unlinked_trade_inside_sequence_fails_loudly(self):
+        rows = self.rows()
+        rows[3] = notion_row(4, "Closed", "2026-10-05", net=5.0, account="")
+        with self.assertRaisesRegex(RuntimeError, "contiguous"):
+            self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"})
+
+    def test_logs_disclose_no_open_position_information(self):
+        import contextlib, io
+        for rows in (self.rows(), [r for r in self.rows() if r["properties"]["Trade Status"]["select"]["name"] != "Open"]):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"})
+            self.assertNotIn("open", buf.getvalue().lower())
+            self.assertNotIn("SYM", buf.getvalue())
 
     def test_missing_start_capital_refuses_to_publish(self):
         env = {k: v for k, v in os.environ.items() if k != "JOURNAL_START_CAPITAL_SGD"}

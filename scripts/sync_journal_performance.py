@@ -76,24 +76,32 @@ def fetch_all():
     return rows
 
 def read_private_trades():
-    """Return (closed, open_count, reconciliation_flags) held in memory only."""
+    """Return (closed, reconciliation_flags, unlinked_rows) held in memory only.
+
+    A trade counts only when its Notion Account relation explicitly includes
+    the swing account. Rows with an empty or different relation are excluded
+    (there is no implicit "unlinked = swing" exception); a linked trade number
+    sequence with gaps then fails loudly instead of silently changing results.
+    """
+    account=ACCOUNT_ID.replace("-","").lower()
+    if not account:
+        raise RuntimeError("Swing account identifier is not configured")
     rows=fetch_all()
-    closed=[]; open_count=0; seen=set(); flagged=0
+    closed=[]; seen=set(); flagged=0; unlinked=0
     for row in rows:
         p=row.get("properties",{})
         status=sel(p.get("Trade Status"))
         if status not in ("Closed","Open"): continue
+        if account not in {x.lower() for x in related(p.get("Account"))}:
+            unlinked+=1
+            continue
         if not text(p.get("Symbol")): raise RuntimeError("A journal trade has no symbol")
-        linked=related(p.get("Account"))
-        # Ignore unlinked, provisional and archived entries.
-        if linked and ACCOUNT_ID.replace("-","") not in linked: continue
         qty=number(p.get("Position Size"))
         number_id=number(p.get("Trade #"))
         if not number_id or number_id in seen: raise RuntimeError("Missing or duplicate trade number in linked account")
         seen.add(number_id)
         if status=="Open":
-            open_count+=1
-            continue
+            continue  # counted for numbering only; never reported or published
         exitdate=date(p.get("Exit Date"))
         net=number(p.get("Broker Net P/L USD"))
         fx=number(p.get("FX USD/SGD"))
@@ -123,19 +131,21 @@ def read_private_trades():
     numbers=seen
     if not numbers or set(range(1,int(max(numbers))+1))!=numbers:
         raise RuntimeError("Journal trade numbers are not contiguous; a verified trade may be missing")
-    return closed, open_count, flagged
+    return closed, flagged, unlinked
 
 
-def export(now=None):
-    closed, open_count, flagged = read_private_trades()
+def export(now=None, out=None):
+    out = OUT if out is None else Path(out)
+    closed, flagged, unlinked = read_private_trades()
     if len(closed) < 10:
         raise RuntimeError("Fewer closed trades than the verified history; refusing to publish")
     stamp=(now or datetime.now(timezone.utc)).isoformat()
     public=build_public(closed, start_capital(), START_DATE, stamp, "notion_sync")
-    OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(json.dumps(public,indent=2)+"\n",encoding="utf-8")
-    print(f"Journal sync: {public['closed_trade_count']} closed trades published as a percentage index; "
-          f"open positions withheld ({'some' if open_count else 'none'} present).")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(public,indent=2)+"\n",encoding="utf-8")
+    print(f"Journal sync: {public['closed_trade_count']} closed trades exported as a percentage index.")
+    if unlinked:
+        print(f"Journal sync: excluded {unlinked} journal row(s) not linked to the swing account.")
     if flagged:
         print(f"::notice::{flagged} closed trade(s) carry a broker-vs-fill reconciliation difference; broker P/L retained. Review in Notion.")
     return public
@@ -156,6 +166,18 @@ def keep_committed_snapshot(reason):
 
 
 if __name__=="__main__":
+    if "--check" in sys.argv:
+        # Pull-request dry run: exercise the real Notion data and every guard,
+        # write only to a throwaway temp file, publish nothing.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                export(out=Path(tmp) / "journal-check.json")
+            except RuntimeError as exc:
+                print(f"Journal dry run failed: {exc}", file=sys.stderr)
+                raise SystemExit(1)
+        print("Journal dry run passed: private data reconciled; nothing written or published.")
+        raise SystemExit(0)
     try:
         export()
     except RuntimeError as exc:

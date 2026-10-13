@@ -37,8 +37,21 @@ class BreadthTests(unittest.TestCase):
         want=100*((e.iloc[-1]/e.iloc[-21])/(c.iloc[-1]/c.iloc[-21])-1)
         self.assertAlmostEqual(m['equal_vs_cap'],want,places=3)
     def test_cutoff_dst(self):
-        self.assertEqual(str(completed_cutoff(datetime(2026,11,5,21,14,tzinfo=timezone.utc)).date()),'2026-11-04')
-        self.assertEqual(str(completed_cutoff(datetime(2026,11,5,21,15,tzinfo=timezone.utc)).date()),'2026-11-05')
+        # 16:15 New York: 20:15 UTC in EDT, 21:15 UTC in EST.
+        for before, after, day, previous in [
+            (datetime(2026,10,13,20,14,tzinfo=timezone.utc),
+             datetime(2026,10,13,20,15,tzinfo=timezone.utc),
+             '2026-10-13', '2026-10-12'),
+            (datetime(2026,11,5,21,14,tzinfo=timezone.utc),
+             datetime(2026,11,5,21,15,tzinfo=timezone.utc),
+             '2026-11-05', '2026-11-04'),
+            (datetime(2027,3,15,20,14,tzinfo=timezone.utc),
+             datetime(2027,3,15,20,15,tzinfo=timezone.utc),
+             '2027-03-15', '2027-03-14'),
+        ]:
+            with self.subTest(day=day):
+                self.assertEqual(str(completed_cutoff(before).date()), previous)
+                self.assertEqual(str(completed_cutoff(after).date()), day)
     def test_raw_gap_with_complete_adjusted_data(self):
         adjusted={t:s.copy() for t,s in self.raw.items()}
         self.raw['RSPT']=self.raw['RSPT'].drop(self.raw['RSPT'].index[-10])

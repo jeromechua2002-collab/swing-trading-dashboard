@@ -8,9 +8,15 @@ from pathlib import Path
 
 import requests
 
-FILES = ['data/rrg-core.json', 'data/rrg-audit.json', 'data/sector-breadth.json',
-         'rrg.html', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js',
-         'stock-leadership.html', 'stock-leadership.js', 'data/stocks/XLV.json', 'data/stocks/XLK.json', 'trade-gate.html', 'trade-gate.js']
+STOCK_SECTORS = ("XLK", "XLY", "XLC", "XLF", "XLI", "XLB", "XLV", "XLE", "XLP", "XLU", "XLRE")
+FILES = [
+    'index.html', 'desk-home.css', 'desk-health.js', 'data/release-manifest.json',
+    'data/journal-performance.json', 'equity.html', 'calendar.html',
+    'data/rrg-core.json', 'data/rrg-audit.json', 'data/sector-breadth.json',
+    'rrg.html', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js',
+    'stock-leadership.html', 'stock-leadership.js', 'trade-gate.html', 'trade-gate.js',
+    *(f'data/stocks/{sector}.json' for sector in STOCK_SECTORS),
+]
 
 
 def verify(base):
@@ -18,12 +24,26 @@ def verify(base):
     breadth = json.loads(local['data/sector-breadth.json'])
     if breadth.get('status') != 'ok' or len(breadth.get('rows', [])) != 11:
         raise RuntimeError('Equal-weight build is unavailable or incomplete; live sync cannot pass')
+    manifest = json.loads(local['data/release-manifest.json'])
+    if manifest.get('market_status') != 'validated_completed_session':
+        raise RuntimeError('The published release is not a validated completed-session snapshot')
+    if manifest.get('breadth_session') != breadth.get('as_of'):
+        raise RuntimeError('Release manifest/breadth session mismatch')
+    for key, path in (
+        ('rrg', 'data/rrg-core.json'),
+        ('breadth', 'data/sector-breadth.json'),
+        ('journal', 'data/journal-performance.json'),
+    ):
+        if manifest['sha256'].get(key) != hashlib.sha256(local[path]).hexdigest():
+            raise RuntimeError(f'Release manifest hash mismatch: {key}')
+    if len(STOCK_SECTORS) != 11:
+        raise RuntimeError('Expected all 11 sector stock JSON files')
     xlv = json.loads(local['data/stocks/XLV.json'])
     if xlv.get('sector') != 'XLV' or len(xlv.get('members', [])) != 10:
         raise RuntimeError('Healthcare live-stock universe is missing or incomplete')
     if xlv.get('generated_at') != json.loads(local['data/rrg-core.json']).get('generated_at'):
         raise RuntimeError('Healthcare stock data timestamp does not match core RRG data')
-    for sec in ("XLV","XLK"):
+    for sec in STOCK_SECTORS:
         doc=json.loads(local[f'data/stocks/{sec}.json'])
         daily=doc['timeframes']['1D']['price_context']
         h4=doc['timeframes']['4H']['price_context']
@@ -44,7 +64,7 @@ def verify(base):
         failures = [e for e in pool.map(check, FILES) if e]
     if failures:
         raise RuntimeError('; '.join(failures))
-    print(f'Live sync verified: {len(FILES)} exact files, 11/11 pairs, session {breadth["as_of"]}')
+    print(f'Live sync verified: {len(FILES)} exact files (including 11 stock files), 11/11 pairs, session {breadth["as_of"]}, journal {manifest["journal_status"]}')
 
 
 if __name__ == '__main__':

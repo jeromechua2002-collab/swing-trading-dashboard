@@ -1,6 +1,8 @@
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time as dt_time
+from zoneinfo import ZoneInfo
+from price_context import summarize_closes
 from pathlib import Path
 
 import numpy as np
@@ -338,6 +340,21 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     if MARKET_BENCHMARK not in closes:
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
 
+    # Yahoo daily bars can include today's INCOMPLETE trading session. Publish
+    # only completed U.S. daily bars; do not promote intraday close to 1D.
+    if label == "1D":
+        ny_now = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York"))
+        if ny_now.weekday() < 5 and ny_now.time() < dt_time(16, 30):
+            cut_day = ny_now.date()
+            dropped = 0
+            for ticker, bars in list(closes.items()):
+                valid = bars.dropna()
+                if not valid.empty and pd.Timestamp(valid.index[-1]).date() >= cut_day:
+                    closes[ticker] = bars.loc[[pd.Timestamp(t).date() < cut_day for t in bars.index]]
+                    dropped += 1
+            if dropped:
+                print(f"{label}: removed {dropped} current-session unfinished daily bars before 16:30 New York time")
+
     # During the cash session Yahoo may deliver the newest partial intraday bar
     # for SPY but not every ETF. Compare all instruments on the same completed
     # common bar, rather than silently comparing different timestamps.
@@ -396,10 +413,22 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
 
     validate_timeframe_output(label, closes, sectors, industries, stocks)
 
+    # Daily and synthetic 4H absolute-price context is independent of the
+    # relative-strength RRG. It is NOT an OHLC pivot or an execution signal.
+    price_context = {}
+    if label in ("1D", "4H"):
+        for ticker in EXPECTED_STOCKS:
+            try:
+                price_context[ticker] = summarize_closes(closes[ticker])
+            except Exception as exc:
+                raise RuntimeError(f"{label} {ticker}: price context integrity failed: {exc}") from exc
+        print(f"{label}: absolute-price trend context {len(price_context)}/{len(EXPECTED_STOCKS)} complete")
+
     return {
         "sectors": sectors,
         "industries": industries,
         "stocks": stocks,
+        "price_context": price_context,
         "benchmark_price": benchmark_payload(spy),
     }
 
@@ -480,6 +509,7 @@ def main() -> None:
         "benchmark": MARKET_BENCHMARK,
         "method": "EdgeRater-calibrated normalized public RRG approximation; not proprietary JdK indicators",
         "price_basis": "raw close",
+        "absolute_price_context_note": "Raw Yahoo daily/synthetic 4H closes, EMA10/20 and prior completed 20-bar CLOSE extremes; not high/low swing pivots, not adjusted for splits, not live execution prices.",
         "data_source": "Yahoo Finance via yfinance",
         "stock_universe_note": "Curated liquid stock drilldown list; not an automatically synchronized ETF holdings file.",
         "stock_universe_reviewed": "2026-10-11",
@@ -525,6 +555,7 @@ def main() -> None:
             "timeframes": {
                 tf: {
                     "stock": block["stocks"].get(sector, {}),
+                    "price_context": {t: block.get("price_context", {})[t] for t in members} if tf in ("1D", "4H") else {},
                     "benchmark_price": block["benchmark_price"],
                 }
                 for tf, block in timeframes.items()

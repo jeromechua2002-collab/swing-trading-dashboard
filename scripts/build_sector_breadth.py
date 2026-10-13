@@ -42,7 +42,7 @@ def daily(s, cutoff=None):
 
 def completed_cutoff(now):
     et = now.astimezone(ZoneInfo("America/New_York"))
-    day = et.date() if (et.hour, et.minute) >= (16, 30) else et.date() - timedelta(days=1)
+    day = et.date() if (et.hour, et.minute) >= (16, 15) else et.date() - timedelta(days=1)
     return pd.Timestamp(day, tz="UTC")
 
 

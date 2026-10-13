@@ -45,45 +45,33 @@ $('status').className='status'+(view.stale?' warn':'');
 $('status').textContent=(view.stale?'OLDER SNAPSHOT — verify refresh before using this screen. ':'Completed-session dataset validated. ')+'Stock/sector, stock/SPY and all tracked peer sessions match. The next U.S. trading session is not included until its data build completes.';
 }
 async function load(){
- $('status').className='status';$('status').textContent='Fetching validated RRG snapshot…';view=null;
+ $('status').className='status';$('status').textContent='Fetching sector and stock files from this published release…';view=null;
  try{
- const stamp=Date.now(),u=await fetch('data/rrg-core.json?ts='+stamp,{cache:'no-store'});
- if(!u.ok)throw Error('Cannot load parent sector universe ('+u.status+')');
- const c=await u.json();
+ const stamp=Date.now();
+ const fetchJson=async path=>{
+   const siteRoot='https://jeromechua2002-collab.github.io/swing-trading-dashboard/';
+   const relative=new URL(path,location.href).href;
+   const canonical=new URL(path,siteRoot).href;
+   let last;
+   for(const url of [relative,...(relative===canonical?[]:[canonical])]){
+     try{
+       const resp=await fetch(url+'?ts='+stamp,{cache:'no-store'});
+       if(!resp.ok)throw Error(resp.status+' '+url);
+       return await resp.json();
+     }catch(err){last=err}
+   }
+   throw new Error(path+' unavailable ('+String(last?.message||last)+'). Check GitHub Pages publication or open the live page directly.');
+ };
+ const c=await fetchJson('data/rrg-core.json');
+ 
  if(!c?.universes?.stock_members||!c.generated_at)throw Error('Parent-sector universe missing.');
  core=c;const sectors=Object.keys(c.universes.stock_members);
  if(!$('sector').options.length){$('sector').innerHTML=sectors.map(t=>'<option value="'+t+'">'+(labels[t]||t)+' · '+t+'</option>').join('');$('sector').value='XLV'}
  const sec=$('sector').value;
- const f=await fetch('data/stocks/'+sec+'.json?ts='+stamp,{cache:'no-store'});
- if(!f.ok)throw Error('Missing '+sec+' stock-data file ('+f.status+')');
- view=StockLeadership.rank(core,await f.json(),sec);
+ const stock=await fetchJson('data/stocks/'+sec+'.json');
+ view=StockLeadership.rank(core,stock,sec);
  draw();
- }catch(e){view=null;$('rows').innerHTML='';$('status').className='status err';$('status').textContent='NO VALID SIGNAL — '+e.message+'. Do not use an outdated screenshot as a current reading.';}
-}
-$('sector').addEventListener('change',load);$('filter').addEventListener('change',draw);$('sort').addEventListener('change',draw);$('refresh').addEventListener('click',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});load();
-</script></body></html>+r['1D_price'].close.toFixed(2)+' / '+r['1D_price'].ema10.toFixed(2)+' / '+r['1D_price'].ema20.toFixed(2)+'</small><small>4H '+r['4H_price'].state+' · 5D '+r['1D_price'].return5_pct.toFixed(2)+'%</small><small>Prior 20 closing-high '+r['1D_price'].prior20_close_high.toFixed(2)+' (not target)</small></td><td>'+r.phase+'<small>'+r.absolute_alignment+'</small><small><a href="trade-gate.html?ticker='+encodeURIComponent(r.ticker)+'&sector='+encodeURIComponent(sector)+'">Open manual trade gate →</a></small></td></tr>'}).join('')||'<tr><td colspan="6">No tracked stocks currently fit this condition.</td></tr>';
-$('session').textContent=view.session;$('fourh').textContent=view.latest_4h;
-$('generated').textContent=new Date(view.generated_at).toLocaleString();
-$('coverage').textContent=view.rows.length+'/'+core.universes.stock_members[sector].length;
-$('benchmark').textContent=sector+' and SPY';
-$('status').className='status'+(view.stale?' warn':'');
-$('status').textContent=(view.stale?'OLDER SNAPSHOT — verify refresh before using this screen. ':'Completed-session dataset validated. ')+'Stock/sector, stock/SPY and all tracked peer sessions match. The next U.S. trading session is not included until its data build completes.';
-}
-async function load(){
- $('status').className='status';$('status').textContent='Fetching validated RRG snapshot…';view=null;
- try{
- const stamp=Date.now(),u=await fetch('data/rrg-core.json?ts='+stamp,{cache:'no-store'});
- if(!u.ok)throw Error('Cannot load parent sector universe ('+u.status+')');
- const c=await u.json();
- if(!c?.universes?.stock_members||!c.generated_at)throw Error('Parent-sector universe missing.');
- core=c;const sectors=Object.keys(c.universes.stock_members);
- if(!$('sector').options.length){$('sector').innerHTML=sectors.map(t=>'<option value="'+t+'">'+(labels[t]||t)+' · '+t+'</option>').join('');$('sector').value='XLV'}
- const sec=$('sector').value;
- const f=await fetch('data/stocks/'+sec+'.json?ts='+stamp,{cache:'no-store'});
- if(!f.ok)throw Error('Missing '+sec+' stock-data file ('+f.status+')');
- view=StockLeadership.rank(core,await f.json(),sec);
- draw();
- }catch(e){view=null;$('rows').innerHTML='';$('status').className='status err';$('status').textContent='NO VALID SIGNAL — '+e.message+'. Do not use an outdated screenshot as a current reading.';}
+ }catch(e){view=null;$('rows').innerHTML='';$('status').className='status err';$('status').textContent='NO VALID SIGNAL — '+e.message+'. Open this dashboard directly from GitHub Pages if the Notion embed cached an earlier release.';}
 }
 $('sector').addEventListener('change',load);$('filter').addEventListener('change',draw);$('sort').addEventListener('change',draw);$('refresh').addEventListener('click',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});load();
 </script></body></html>

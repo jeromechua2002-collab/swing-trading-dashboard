@@ -1,0 +1,50 @@
+name: Breadth full-universe pre-release audit
+on:
+  push:
+    branches: ["feat/marketwide-breadth-20261013"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Existing full RRG data build
+        run: python scripts/build_rrg_data.py
+      - name: Preserve daily calibration validation
+        run: python scripts/validate_rrg.py
+      - name: Breadth all-pair model tests
+        run: python -m unittest discover -s scripts -p "test_sector_breadth.py" -v
+      - name: Feed and confirmation tests
+        run: |
+          node scripts/test_breadth_confirmation.cjs
+          node --check breadth-feed.js
+          node --check breadth-confirmation.js
+          node --check scripts/test_breadth_feed.cjs
+      - name: Build cap versus equal-weight feed
+        run: python scripts/build_sector_breadth.py
+      - name: Full 11+16+stock universe data audit
+        run: python scripts/audit_market_universe.py
+      - name: Validate 11-pair live-feed contract
+        run: node scripts/test_breadth_feed.cjs data/sector-breadth.json
+      - name: Check all application inline JavaScript syntax
+        run: |
+          node -e "const fs=require('fs');for(const p of ['sector-breadth.html','rrg.html','rotation-lab.html','equity.html','calendar.html']){let x=fs.readFileSync(p,'utf8');for(let m of x.matchAll(/<script(?:[^>]*?)>([\\s\\S]*?)<\\/script>/g)){new Function(m[1])}console.log('JavaScript syntax OK',p)}"
+      - name: Retain build for independent audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breadth-audit-output
+          path: |
+            data/sector-breadth.json
+            data/rrg-core.json
+            data/rrg-validation.json
+            data/rrg-history-review.json
+          if-no-files-found: warn

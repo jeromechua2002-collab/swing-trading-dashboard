@@ -23,7 +23,9 @@ def main():
     stocks=set(sum(STOCK_GROUPS.values(),[]))
     assert len(sectors)==11 and len(industries)==16 and len(stocks)==len(EXPECTED_STOCKS)
     assert d["universes"]["stock_members"]==STOCK_GROUPS
+    import math
     total=0
+    price_checks=0
     for tf in ("1W","1D","4H","1H"):
         block=d["timeframes"][tf]
         for group,expected in (("sectors",sectors),("industries",industries)):
@@ -34,6 +36,18 @@ def main():
             doc=load(f"data/stocks/{sector}.json")
             if doc["members"]!=members: raise ValueError(f"{sector}: mismatched stock membership")
             sub=doc["timeframes"][tf]["stock"]
+            if tf in ("1D","4H"):
+                ctx=doc["timeframes"][tf].get("price_context", {})
+                if set(ctx)!=set(members):
+                    raise ValueError(f"{tf} {sector} incomplete price context: {set(members)^set(ctx)}")
+                expected_session=block["benchmark_price"][-1]["time"][:10]
+                for ticker,p in ctx.items():
+                    if p["session"]!=expected_session:raise ValueError(f"{tf} {sector} {ticker} mismatched price session")
+                    if p["state"] not in ("Uptrend","Downtrend","Mixed"):raise ValueError(f"{ticker} unknown absolute trend")
+                    for key in ("close","ema10","ema20","prior20_close_high","prior20_close_low","return5_pct","return20_pct"):
+                        if not isinstance(p.get(key),(float,int)) or not math.isfinite(p[key]):raise ValueError(f"{ticker} invalid {key}")
+                    if min(p["close"],p["ema10"],p["ema20"])<=0:raise ValueError(f"{ticker} invalid nonpositive price")
+                    price_checks+=1
             for basis in ("vs_SPY",f"vs_{sector}"):
                 actual=sub.get(basis,{})
                 if set(actual)!=set(members): raise ValueError(f"{tf} {sector}: missing/extra {basis}: {set(members)^set(actual)}")
@@ -59,5 +73,5 @@ def main():
         for k,t in (("cap_vs_SPY",r["cap"]),("equal_vs_SPY",r["equal"]),("equal_vs_RSP",r["equal"])):
             check_trail(b["rrg"][k][t],t,"1D",k)
             if b["rrg"][k][t][-1]["time"][:10]!=b["as_of"]:raise ValueError("Breadth RRG date mismatch")
-    print(f"FULL MARKET AUDIT PASSED: 4 timeframes, 11 sectors, 16 industries, {len(stocks)} unique stocks, {total} RRG trail checks, 11 equal-weight pairs, 23 raw/adjusted price histories and 44 window comparisons")
+    print(f"FULL MARKET AUDIT PASSED: 4 timeframes, 11 sectors, 16 industries, {len(stocks)} unique stocks, {total} RRG trail checks, 11 equal-weight pairs, 23 raw/adjusted price histories and 44 window comparisons, {price_checks} absolute-price/timeframe checks")
 if __name__=="__main__":main()

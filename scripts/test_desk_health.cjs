@@ -13,7 +13,7 @@ const clone=x=>structuredClone(x),bad=(change,pattern)=>assert.throws(change,pat
 bad(()=>run({...m,rrg_session:"2026-10-12"}),/sessions disagree/);
 bad(()=>run({...m,market_status:"unverified"}),/manifest/);
 bad(()=>run(m,r,{...b,rows:b.rows.slice(1)}),/breadth pairs/);
-bad(()=>run(m,r,b,{...j,closed_trades:[]}),/Journal curve\\/manifest/);
+bad(()=>run(m,r,b,{...j,closed_trades:[]}),/Journal curve.manifest/);
 bad(()=>run(m,r,b,j,{...digest,rrg:"b".repeat(64)}),/hash mismatch/);
 bad(()=>run(m,r,b,j,{rrg:sha,breadth:sha}),/hash mismatch/);
 bad(()=>run(m,{...r,generated_at:"2026-10-12T20:00:00+00:00"}),/generation times/);

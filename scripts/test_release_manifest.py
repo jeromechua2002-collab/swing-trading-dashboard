@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from build_release_manifest import create
+from journal_public import build_public
 
 STAMP = "2026-10-13T23:10:00+00:00"
 JSTAMP = "2026-10-13T23:15:00+00:00"
@@ -37,15 +38,8 @@ class ReleaseManifestTests(unittest.TestCase):
             "generated_at": "2026-10-13T23:14:00+00:00",
             "rows": [{"cap": k, "equal": "R" + k} for k in self.members]
         }
-        closed = [{"number": i + 1, "exit_date": "2026-10-13"} for i in range(10)]
-        journal = {
-            "updated_at": JSTAMP,
-            "snapshot_kind": "manual_verified_pending_reconciliation",
-            "closed_trades": closed,
-            "open_trades": [{"number": 9, "symbol": "XYZ"}],
-            "curve": [{"equity_sgd": 2500.0}] * 10 + [{"equity_sgd": 2625.0}],
-            "current_equity_sgd": 2625.0,
-        }
+        journal = build_public([{"exit_date": "2026-10-13", "net_sgd": 12.5}] * 10, 2500.0,
+                               "2026-09-30", JSTAMP, "manual_snapshot")
         self.write("data/rrg-core.json", rrg)
         self.write("data/sector-breadth.json", breadth)
         self.write("data/journal-performance.json", journal)
@@ -69,7 +63,10 @@ class ReleaseManifestTests(unittest.TestCase):
         self.assertEqual(out["market_coverage"]["stocks"], 116)
         self.assertEqual(out["market_coverage"]["breadth_pairs"], 11)
         self.assertEqual(out["journal_status"], "manual_snapshot")
-        self.assertEqual(out["journal_equity_sgd"], 2625.0)
+        self.assertEqual(out["journal_return_pct"], 5.0)
+        self.assertEqual(out["journal_closed_count"], 10)
+        for private in ("journal_equity_sgd", "journal_open_count", "journal_latest_trade"):
+            self.assertNotIn(private, out)
         self.assertEqual(len(out["sha256"]["rrg"]), 64)
 
     def test_detect_mismatched_sessions(self):
@@ -103,9 +100,16 @@ class ReleaseManifestTests(unittest.TestCase):
 
     def test_reject_mismatched_equity(self):
         data = self.load("data/journal-performance.json")
-        data["current_equity_sgd"] += 1
+        data["realized_return_pct"] += 1
         self.write("data/journal-performance.json", data)
-        with self.assertRaisesRegex(ValueError, "equity/curve mismatch"):
+        with self.assertRaisesRegex(ValueError, "final equity index"):
+            create(self.root, NOW)
+
+    def test_reject_private_journal(self):
+        data = self.load("data/journal-performance.json")
+        data["open_trades"] = [{"number": 9, "symbol": "XYZ"}]
+        self.write("data/journal-performance.json", data)
+        with self.assertRaisesRegex(ValueError, "allowlist"):
             create(self.root, NOW)
 
 if __name__ == "__main__":

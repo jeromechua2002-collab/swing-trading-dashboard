@@ -73,6 +73,9 @@ jobs:
       - name: Unit-test release provenance and data coherence
         run: python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
 
+      - name: Test journal privacy contract and publication allowlist
+        run: python -m unittest discover -s scripts -p 'test_publication_privacy.py' -v
+
       - name: Test research cockpit and data health UI
         run: |
           node --check desk-health.js
@@ -122,23 +125,29 @@ jobs:
           node scripts/test_stock_leadership.cjs
           node scripts/test_execution_gate.cjs
 
-      - name: Sync swing journal equity and P/L calendar
+      - name: Sync public journal index (closed trades, percentages only)
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          JOURNAL_START_CAPITAL_SGD: ${{ secrets.JOURNAL_START_CAPITAL_SGD }}
         run: python scripts/sync_journal_performance.py
 
-      - name: Reconcile every journal equity curve and P/L calendar event
+      - name: Audit public journal snapshot against the privacy contract
         run: python scripts/test_journal_snapshot.py
 
       - name: Build fail-closed release manifest for all public dashboards
         run: python scripts/build_release_manifest.py
+
+      - name: Assemble and audit allowlisted publication directory
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python scripts/build_site.py _site
 
       - name: Browser-test stock radar, RRG, breadth and embedded Notion-like view
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           pip install playwright==1.56.0
           python -m playwright install chromium
-          python -m http.server 8765 --bind 127.0.0.1 >/tmp/trading-desk-http.log 2>&1 &
+          python -m http.server 8765 --bind 127.0.0.1 --directory _site >/tmp/trading-desk-http.log 2>&1 &
           DASHBOARD_TEST_URL=http://127.0.0.1:8765/ python scripts/smoke_dashboard_browser.py
 
       - name: Setup Pages
@@ -147,7 +156,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
@@ -155,3 +164,6 @@ jobs:
 
       - name: Verify deployed dashboard data
         run: python scripts/check_live_dashboard.py "${{ steps.deployment.outputs.page_url }}"
+
+      - name: Verify public endpoints no longer expose private journal data or source files
+        run: python scripts/check_public_exposure.py "${{ steps.deployment.outputs.page_url }}"

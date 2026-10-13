@@ -1,0 +1,68 @@
+{
+  "schema": "public-journal-v2",
+  "updated_at": "2026-10-13T16:01:19.460Z",
+  "source_status": "manual_snapshot",
+  "basis": "Closed trades only, aggregated by exit date. Equity index starts at 100; returns are percentages of account equity. No positions, symbols, prices, sizes, fees or monetary amounts are published.",
+  "closed_trade_count": 10,
+  "winning_trades": 5,
+  "losing_trades": 5,
+  "breakeven_trades": 0,
+  "realized_return_pct": 2.104,
+  "last_closed_date": "2026-10-13",
+  "curve": [
+    {
+      "date": "2026-09-30",
+      "index": 100.0
+    },
+    {
+      "date": "2026-10-02",
+      "index": 100.9564
+    },
+    {
+      "date": "2026-10-07",
+      "index": 106.7234
+    },
+    {
+      "date": "2026-10-08",
+      "index": 105.8336
+    },
+    {
+      "date": "2026-10-09",
+      "index": 104.1032
+    },
+    {
+      "date": "2026-10-12",
+      "index": 103.3908
+    },
+    {
+      "date": "2026-10-13",
+      "index": 102.1038
+    }
+  ],
+  "calendar": {
+    "2026-10-02": {
+      "return_pct": 0.956,
+      "closed_trades": 2
+    },
+    "2026-10-07": {
+      "return_pct": 5.712,
+      "closed_trades": 1
+    },
+    "2026-10-08": {
+      "return_pct": -0.834,
+      "closed_trades": 3
+    },
+    "2026-10-09": {
+      "return_pct": -1.635,
+      "closed_trades": 1
+    },
+    "2026-10-12": {
+      "return_pct": -0.684,
+      "closed_trades": 1
+    },
+    "2026-10-13": {
+      "return_pct": -1.245,
+      "closed_trades": 2
+    }
+  }
+}

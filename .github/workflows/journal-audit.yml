@@ -1,4 +1,4 @@
-name: Verify swing journal curve and P/L calendar
+name: Verify public journal privacy and equity index
 on:
   push:
     branches: ["main"]
@@ -6,6 +6,9 @@ on:
       - "data/journal-performance.json"
       - "scripts/sync_journal_performance.py"
       - "scripts/test_journal_snapshot.py"
+      - "scripts/journal_public.py"
+      - "scripts/build_site.py"
+      - "scripts/test_publication_privacy.py"
       - ".github/workflows/journal-audit.yml"
   workflow_dispatch:
 permissions:
@@ -21,5 +24,7 @@ jobs:
           python-version: "3.12"
       - name: Check Notion journal exporter Python syntax
         run: python -m py_compile scripts/sync_journal_performance.py
-      - name: Reconcile every equity point and trading calendar day
+      - name: Audit public journal snapshot against the privacy contract
         run: python scripts/test_journal_snapshot.py
+      - name: Privacy contract, publication allowlist and sync output tests
+        run: python -m unittest discover -s scripts -p 'test_publication_privacy.py' -v

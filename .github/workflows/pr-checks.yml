@@ -1,0 +1,76 @@
+name: Pull request checks (no deploy)
+
+# Runs the release gates on a pull request WITHOUT publishing anything.
+# Uses the committed public journal snapshot; the only Notion call is a
+# read-only exporter dry run that writes to a temp file and logs counts only.
+on:
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install --disable-pip-version-check -r requirements.txt playwright==1.56.0
+
+      - name: Offline unit tests
+        run: |
+          node scripts/test_all_dashboards.cjs
+          python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
+          python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
+          python -m unittest discover -s scripts -p 'test_publication_privacy.py' -v
+          python -m unittest discover -s scripts -p 'test_price_context.py' -v
+          python -m unittest discover -s scripts -p 'test_sector_breadth.py' -v
+          node scripts/test_desk_health.cjs
+          node scripts/test_desk_home.cjs
+          node scripts/test_execution_gate.cjs
+          node scripts/test_breadth_confirmation.cjs
+          python scripts/test_journal_snapshot.py
+
+      - name: Dry-run journal exporter against real Notion data (counts only, nothing written)
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          JOURNAL_START_CAPITAL_SGD: ${{ secrets.JOURNAL_START_CAPITAL_SGD }}
+        run: |
+          if [ -z "$NOTION_TOKEN" ]; then echo "::notice::Secrets unavailable (fork PR); journal dry run skipped"; exit 0; fi
+          python scripts/sync_journal_performance.py --check
+
+      - name: Build market data and run data-dependent audits
+        run: |
+          python scripts/build_rrg_data.py
+          python scripts/validate_rrg.py
+          python scripts/audit_rrg_reference_daily.py
+          python scripts/rrg_sensitivity.py
+          python scripts/build_sector_breadth.py
+          python scripts/audit_market_universe.py
+          node scripts/test_breadth_ticker_mapping.cjs
+          node scripts/test_breadth_feed.cjs data/sector-breadth.json
+          node scripts/test_stock_leadership.cjs
+          python scripts/build_release_manifest.py
+
+      - name: Assemble and audit the publication artifact (not uploaded)
+        run: python scripts/build_site.py _site
+
+      - name: Chromium smoke against the artifact (desktop, iframe, 375px)
+        run: |
+          python -m playwright install --with-deps chromium
+          python -m http.server 8765 --bind 127.0.0.1 --directory _site >/tmp/pr-http.log 2>&1 &
+          DASHBOARD_TEST_URL=http://127.0.0.1:8765/ python scripts/smoke_dashboard_browser.py

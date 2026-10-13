@@ -583,6 +583,7 @@ def chart_page_matches(page, row):
         and page_select(page, "Window") == row["window"]
         and page_select(page, "Benchmark") == row["benchmark"]
         and numbers_close(page_number(page, "Relative Performance %"), row["value"])
+        and page_date(page, "Updated") == row["updated"]
     )
 
 
@@ -631,7 +632,7 @@ def upsert_chart(rows, token):
         if page and chart_page_matches(page, row):
             skipped += 1
         elif page:
-            work.append(("update", page["id"], chart_properties(row, include_updated=False)))
+            work.append(("update", page["id"], chart_properties(row, include_updated=True)))
         else:
             work.append(("create", None, chart_properties(row, include_updated=True)))
 

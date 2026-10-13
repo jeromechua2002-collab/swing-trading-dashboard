@@ -1,10 +1,11 @@
 import json
 import time
-from datetime import datetime, timezone, time as dt_time
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from price_context import summarize_closes
 from pathlib import Path
 
+import exchange_calendars as xcals
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -50,6 +51,84 @@ CONFIGS = {
     "4H": {"period": "60d", "interval": "1h", "synthetic_hours": 4},
     "1H": {"period": "60d", "interval": "1h"},
 }
+# ── Completed-bar policy ─────────────────────────────────────────────────────
+# Yahoo labels 1h bars by their START time, 1wk bars by the week's first day and
+# 1d bars by the session date, and returns the still-forming bar for each. Only
+# bars whose END has passed (by the NYSE calendar, incl. holidays and early
+# closes) may be published. All timeframes are judged against one build clock.
+NY = ZoneInfo("America/New_York")
+DAILY_SETTLE = pd.Timedelta(minutes=15)  # grace after the close for final prints
+_NYSE = None
+
+
+def nyse():
+    global _NYSE
+    if _NYSE is None:
+        _NYSE = xcals.get_calendar("XNYS")
+    return _NYSE
+
+
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _ny(ts) -> pd.Timestamp:
+    t = pd.Timestamp(ts)
+    return (t.tz_localize("UTC") if t.tzinfo is None else t).tz_convert(NY)
+
+
+def _naive_day(label) -> pd.Timestamp:
+    """Calendar date a bar label refers to (UTC date for tz-aware daily/weekly labels)."""
+    t = pd.Timestamp(label)
+    if t.tzinfo is not None:
+        t = t.tz_convert("UTC").tz_localize(None)
+    return t.normalize()
+
+
+def _session_close(day: pd.Timestamp) -> pd.Timestamp | None:
+    return nyse().session_close(day).tz_convert(NY) if nyse().is_session(day) else None
+
+
+def daily_bar_end(label) -> pd.Timestamp:
+    """Daily bar is final once its session close (+settle) has passed."""
+    day = _naive_day(label)
+    close = _session_close(day)
+    if close is None:  # not a session (vendor anomaly): final only after that calendar day
+        return (day + pd.Timedelta(days=1)).tz_localize(NY)
+    return close + DAILY_SETTLE
+
+
+def hourly_bar_end(label) -> pd.Timestamp:
+    """1h bar starting at `label` ends one hour later, or at an (early) close."""
+    start = _ny(label)
+    close = _session_close(start.tz_localize(None).normalize())
+    end = start + pd.Timedelta(hours=1)
+    return min(end, close) if close is not None else end
+
+
+def weekly_bar_end(label) -> pd.Timestamp:
+    """Weekly bar is final after the last NYSE session of that week has closed."""
+    first = _naive_day(label)
+    monday = first - pd.Timedelta(days=first.weekday())
+    sessions = nyse().sessions_in_range(monday, monday + pd.Timedelta(days=4))
+    if len(sessions) == 0:
+        return (monday + pd.Timedelta(days=7)).tz_localize(NY)
+    return nyse().session_close(sessions[-1]).tz_convert(NY) + DAILY_SETTLE
+
+
+BAR_END = {"1d": daily_bar_end, "1h": hourly_bar_end, "1wk": weekly_bar_end}
+
+
+def completed_only(series: pd.Series, interval: str, build_now) -> pd.Series:
+    """Drop every bar whose end is after the build clock. Apply to RAW vendor
+    bars, before any synthetic aggregation."""
+    if series.empty:
+        return series
+    now = _ny(build_now)
+    end = BAR_END[interval]
+    return series.loc[[end(t) <= now for t in series.index]]
+
+
 SMOOTH_WMA = 10
 NORMALIZE_WINDOW = 16
 MOMENTUM_ROC = 5
@@ -307,14 +386,24 @@ def validate_timeframe_output(label: str, closes: dict, sectors: dict, industrie
     )
 
 
-def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
+def prepare_series(raw: pd.Series, cfg: dict, build_now) -> tuple[pd.Series, int]:
+    """Completed vendor bars only, then (for 4H) synthetic aggregation."""
+    series = completed_only(raw, cfg["interval"], build_now)
+    dropped = int(raw.notna().sum() - series.notna().sum())
+    if cfg.get("synthetic_hours"):
+        series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
+    return series, dropped
+
+
+def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: datetime | None = None) -> dict:
+    build_now = build_now or now_utc()
     data = download_prices(tickers, cfg)
     closes = {}
+    dropped_forming = 0
     for ticker in tickers:
         try:
-            series = close_series(data, ticker)
-            if cfg.get("synthetic_hours"):
-                series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
+            series, dropped = prepare_series(close_series(data, ticker), cfg, build_now)
+            dropped_forming += dropped
             closes[ticker] = series
         except Exception as exc:
             print(f"{label} batch missing {ticker}: {exc}")
@@ -327,11 +416,11 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     for ticker in missing:
         try:
             one = download_prices([ticker], cfg)
-            series = close_series(one, ticker)
-            if series.dropna().empty:
+            raw = close_series(one, ticker)
+            if raw.dropna().empty:
                 raise ValueError(f"{ticker}: retry returned empty close series")
-            if cfg.get("synthetic_hours"):
-                series = synthetic_hour_bars(series, int(cfg["synthetic_hours"]))
+            series, dropped = prepare_series(raw, cfg, build_now)
+            dropped_forming += dropped
             closes[ticker] = series
             print(f"{label}: recovered {ticker} on individual retry")
         except Exception as exc:
@@ -340,24 +429,12 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
     if MARKET_BENCHMARK not in closes:
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
 
-    # Yahoo daily bars can include today's INCOMPLETE trading session. Publish
-    # only completed U.S. daily bars; do not promote intraday close to 1D.
-    if label == "1D":
-        ny_now = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York"))
-        if ny_now.weekday() < 5 and ny_now.time() < dt_time(16, 15):
-            cut_day = ny_now.date()
-            dropped = 0
-            for ticker, bars in list(closes.items()):
-                valid = bars.dropna()
-                if not valid.empty and pd.Timestamp(valid.index[-1]).date() >= cut_day:
-                    closes[ticker] = bars.loc[[pd.Timestamp(t).date() < cut_day for t in bars.index]]
-                    dropped += 1
-            if dropped:
-                print(f"{label}: removed {dropped} current-session unfinished daily bars before 16:15 New York time")
+    if dropped_forming:
+        print(f"{label}: removed {dropped_forming} still-forming vendor bars (bar end after build clock {build_now.isoformat()})")
 
-    # During the cash session Yahoo may deliver the newest partial intraday bar
-    # for SPY but not every ETF. Compare all instruments on the same completed
-    # common bar, rather than silently comparing different timestamps.
+    # A symbol can still lag the others by a completed bar (missing vendor
+    # candle). Compare all instruments on the same common completed bar,
+    # rather than silently comparing different timestamps.
     if label in ("1H", "4H"):
         last = {t: v.dropna().index[-1] for t, v in closes.items() if not v.dropna().empty}
         if last:
@@ -367,7 +444,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
             if newest - cutoff > allowed:
                 raise RuntimeError(f"{label}: recent bar freshness gap exceeds {allowed}: {newest} vs {cutoff}")
             if cutoff != newest:
-                print(f"{label}: aligning {len(closes)} symbols to common timestamp {cutoff}; newest vendor bar {newest} was partial")
+                print(f"{label}: aligning {len(closes)} symbols to common completed timestamp {cutoff}; newest {newest} not yet available for every symbol")
             closes = {t: v.loc[v.index <= cutoff] for t, v in closes.items()}
 
     spy = closes[MARKET_BENCHMARK]
@@ -434,6 +511,8 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str]) -> dict:
 
 
 def main() -> None:
+    # One clock for the whole build: every timeframe is cut at the same instant.
+    build_now = now_utc()
     tickers = {
         MARKET_BENCHMARK,
         *[t for group in SECTOR_GROUPS.values() for t in group],
@@ -443,7 +522,7 @@ def main() -> None:
 
     timeframes = {}
     for label, cfg in CONFIGS.items():
-        timeframes[label] = build_timeframe(label, cfg, sorted(tickers))
+        timeframes[label] = build_timeframe(label, cfg, sorted(tickers), build_now)
 
     Path("data/stocks").mkdir(parents=True, exist_ok=True)
 
@@ -459,7 +538,9 @@ def main() -> None:
     audit_prices = {}
     for ticker in audit_tickers:
         try:
-            series = close_series(audit_data, ticker).dropna().tail(320)
+            # Same completed-bar rule as 1D: the Rotation Lab page reads these
+            # closes directly, so a still-forming session must not appear here.
+            series = completed_only(close_series(audit_data, ticker).dropna(), "1d", build_now).tail(320)
             audit_prices[ticker] = [
                 {"time": iso_label(idx), "close": round(float(value), 6)}
                 for idx, value in series.items()
@@ -468,7 +549,8 @@ def main() -> None:
             print(f"audit missing {ticker}: {exc}")
     Path("data/rrg-audit.json").write_text(
         json.dumps({
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": build_now.isoformat(),
+            "completed_bars_only": True,
             "benchmark": MARKET_BENCHMARK,
             "timeframe": "1D",
             "prices": audit_prices,
@@ -488,8 +570,13 @@ def main() -> None:
             len(v.get("vs_SPY", {}))
             for v in block.get("stocks", {}).values()
         )
+        latest_bar_end = BAR_END[CONFIGS[tf]["interval"]](latest_bar) if latest_bar else None
+        if latest_bar_end is not None and latest_bar_end > _ny(build_now):
+            raise RuntimeError(f"{tf}: latest bar {latest_bar} ends {latest_bar_end} after build clock {build_now}")
         health[tf] = {
             "latest_bar": latest_bar,
+            "latest_bar_end": latest_bar_end.isoformat() if latest_bar_end is not None else None,
+            "completed_bars_only": True,
             "sector_coverage": sector_cov,
             "sector_expected": len(EXPECTED_SECTORS),
             "industry_coverage": industry_cov,
@@ -504,7 +591,7 @@ def main() -> None:
         }
 
     core_payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": build_now.isoformat(),
         "health": health,
         "benchmark": MARKET_BENCHMARK,
         "method": "EdgeRater-calibrated normalized public RRG approximation; not proprietary JdK indicators",

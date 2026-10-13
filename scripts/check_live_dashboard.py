@@ -10,7 +10,7 @@ import requests
 
 FILES = ['data/rrg-core.json', 'data/rrg-audit.json', 'data/sector-breadth.json',
          'rrg.html', 'sector-breadth.html', 'breadth-feed.js', 'breadth-confirmation.js',
-         'stock-leadership.html', 'stock-leadership.js', 'data/stocks/XLV.json']
+         'stock-leadership.html', 'stock-leadership.js', 'data/stocks/XLV.json', 'data/stocks/XLK.json', 'trade-gate.html', 'trade-gate.js']
 
 
 def verify(base):
@@ -23,6 +23,12 @@ def verify(base):
         raise RuntimeError('Healthcare live-stock universe is missing or incomplete')
     if xlv.get('generated_at') != json.loads(local['data/rrg-core.json']).get('generated_at'):
         raise RuntimeError('Healthcare stock data timestamp does not match core RRG data')
+    for sec in ("XLV","XLK"):
+        doc=json.loads(local[f'data/stocks/{sec}.json'])
+        daily=doc['timeframes']['1D']['price_context']
+        h4=doc['timeframes']['4H']['price_context']
+        if set(daily)!=set(doc['members']) or set(h4)!=set(doc['members']):
+            raise RuntimeError(f'{sec}: deployed price context incomplete')
     def check(name):
         try:
             r = requests.get(base.rstrip('/') + '/' + name, params={'verify': hashlib.sha256(local[name]).hexdigest()[:16]},

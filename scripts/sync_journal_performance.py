@@ -128,9 +128,15 @@ def read_private_trades():
             if abs(round(net-fill_net,2))>0.01:
                 flagged+=1
         closed.append({"number":int(number_id),"exit_date":exitdate,"net_sgd":round(net*fx,2)})
-    numbers=seen
-    if not numbers or set(range(1,int(max(numbers))+1))!=numbers:
-        raise RuntimeError("Journal trade numbers are not contiguous; a verified trade may be missing")
+    numbers={int(n) for n in seen}
+    missing=sorted(set(range(1,max(numbers,default=0)+1))-numbers)
+    if not numbers or missing:
+        # Trade numbers alone carry no symbol, size or amount; listing them lets
+        # the owner fix the Notion Account relation without exposing detail.
+        raise RuntimeError("Journal trade numbers are not contiguous among swing-account trades; "
+                           f"missing #{', #'.join(map(str,missing)) or '1'} "
+                           f"({unlinked} row(s) excluded as not linked to the swing account). "
+                           "Link those trades to the swing account in Notion.")
     return closed, flagged, unlinked
 
 

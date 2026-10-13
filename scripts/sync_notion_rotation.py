@@ -761,14 +761,39 @@ def main():
             f"expected {len(ALL_SECTORS) + len(ALL_INDUSTRIES)}"
         )
 
-    expected_chart_rows = sum(WINDOW_SAMPLES.values()) * (
-        len(ALL_SECTORS) + len(ALL_INDUSTRIES)
-    )
-    if len(chart_rows) != expected_chart_rows:
+    # MTD and YTD have calendar-dependent history. In early October, for
+    # example, MTD may contain only 8 trading sessions, not the configured
+    # maximum of 11 chart samples. Reject missing/duplicate data, but do not
+    # fabricate observations merely to reach a constant total row count.
+    expected_by_series = {}
+    for ticker in [*ALL_SECTORS, *ALL_INDUSTRIES]:
+        for window_name, window in WINDOWS.items():
+            points = len(relative_curve(closes[ticker], closes["SPY"], window))
+            expected_by_series[(ticker, window_name)] = min(points, WINDOW_SAMPLES[window_name])
+
+    actual_by_series = {}
+    unique_keys = set()
+    for row in chart_rows:
+        key = row["key"]
+        if key in unique_keys:
+            raise RuntimeError(f"Duplicate chart series key: {key}")
+        unique_keys.add(key)
+        series_key = (row["ticker"], row["window"])
+        actual_by_series[series_key] = actual_by_series.get(series_key, 0) + 1
+
+    discrepancies = {
+        series: (expected, actual_by_series.get(series, 0))
+        for series, expected in expected_by_series.items()
+        if expected != actual_by_series.get(series, 0)
+    }
+    if discrepancies or len(chart_rows) != sum(expected_by_series.values()):
         raise RuntimeError(
-            f"Chart row count mismatch: got {len(chart_rows)}, "
-            f"expected {expected_chart_rows}"
+            "Chart row coverage mismatch: "
+            f"{discrepancies}; actual={len(chart_rows)} "
+            f"expected={sum(expected_by_series.values())}"
         )
+    print(f"Chart sampling coverage OK: {len(chart_rows)} rows across "
+          f"{len(expected_by_series)} ticker/window combinations")
 
     print(
         f"Prepared {len(chart_rows)} chart rows and {len(signal_rows)} signal rows "

@@ -52,6 +52,7 @@ jobs:
       - name: Test breadth feed and confirmation UI
         run: |
           node scripts/test_breadth_confirmation.cjs
+          node scripts/test_breadth_ticker_mapping.cjs
           node --check breadth-feed.js
           node --check breadth-confirmation.js
 

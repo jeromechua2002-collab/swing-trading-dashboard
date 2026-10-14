@@ -70,6 +70,9 @@ jobs:
       - name: Test dated reference crossovers without forward-looking data
         run: python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
 
+      - name: Test completed-bar policy (NYSE calendar, holidays, early closes, DST)
+        run: python -m unittest discover -s scripts -p 'test_completed_bars.py' -v
+
       - name: Unit-test release provenance and data coherence
         run: python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
 

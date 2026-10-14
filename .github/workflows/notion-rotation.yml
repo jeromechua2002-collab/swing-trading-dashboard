@@ -10,6 +10,9 @@ on:
   schedule:
     # 22:15 UTC is after the U.S. cash close in both EDT and EST.
     - cron: "15 22 * * 1-5"
+    # Catch-up at 11:30 SGT Tue-Sat if the prior US close missed the main run.
+    # The sync checks Notion against the latest SPY date and skips a fresh snapshot.
+    - cron: "30 3 * * 2-6"
 
 permissions:
   contents: read

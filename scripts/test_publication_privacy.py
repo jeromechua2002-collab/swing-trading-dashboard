@@ -202,8 +202,15 @@ class SyncPublishesOnlyPublicData(unittest.TestCase):
     def test_unlinked_trade_inside_sequence_fails_loudly(self):
         rows = self.rows()
         rows[3] = notion_row(4, "Closed", "2026-10-05", net=5.0, account="")
-        with self.assertRaisesRegex(RuntimeError, "contiguous"):
+        with self.assertRaisesRegex(RuntimeError, r"contiguous.*#4: a Closed/Open row that is not linked"):
             self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"})
+
+    def test_gap_from_other_status_names_the_status(self):
+        rows = self.rows()
+        rows[3] = notion_row(4, "Cancelled")
+        with self.assertRaisesRegex(RuntimeError, r"#4: a row whose Trade Status is neither Closed nor Open") as ctx:
+            self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"})
+        self.assertNotIn("link it", str(ctx.exception))
 
     def test_logs_disclose_no_open_position_information(self):
         import contextlib, io
@@ -222,8 +229,10 @@ class SyncPublishesOnlyPublicData(unittest.TestCase):
 
     def test_gap_in_trade_numbers_fails(self):
         rows = [r for r in self.rows() if r["properties"]["Trade #"]["number"] != 4]
-        with self.assertRaisesRegex(RuntimeError, "contiguous"):
+        with self.assertRaisesRegex(RuntimeError, r"contiguous.*#4: no row in the trades database") as ctx:
             self.run_export(rows, {"JOURNAL_START_CAPITAL_SGD": "1000"})
+        self.assertNotIn("link it", str(ctx.exception))
+        self.assertNotIn("SYM", str(ctx.exception))
 
     def test_unreconciled_exit_lots_fail(self):
         rows = self.rows()

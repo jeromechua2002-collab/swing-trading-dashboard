@@ -303,6 +303,36 @@ def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
     raise RuntimeError(f"Yahoo download failed after 3 attempts: {last_exc}")
 
 
+def refresh_lagging_daily_closes(closes: dict, cfg: dict, build_now) -> dict:
+    """Retry lagging vendor daily bars but never invent or forward-fill closes."""
+    bench = closes.get(MARKET_BENCHMARK)
+    if bench is None or bench.dropna().empty:
+        return closes
+    expected = bench.dropna().index[-1]
+    lagging = sorted(ticker for ticker, series in closes.items()
+                     if ticker != MARKET_BENCHMARK and not series.dropna().empty
+                     and series.dropna().index[-1] != expected)
+    if not lagging:
+        return closes
+    print(f"1D: refreshing {len(lagging)} lagging Yahoo tickers at benchmark session {expected}")
+    try:
+        refreshed = download_prices(lagging, cfg)
+    except Exception as exc:
+        print(f"1D: refresh unavailable ({type(exc).__name__}); integrity gate remains active")
+        return closes
+    recovered = 0
+    for ticker in lagging:
+        try:
+            series, _ = prepare_series(close_series(refreshed, ticker), cfg, build_now)
+            if not series.dropna().empty and series.dropna().index[-1] == expected:
+                closes[ticker] = series
+                recovered += 1
+        except Exception:
+            pass
+    print(f"1D: recovered {recovered}/{len(lagging)}; outstanding gaps must fail validation")
+    return closes
+
+
 def validate_timeframe_output(label: str, closes: dict, sectors: dict, industries: dict, stocks: dict) -> None:
     missing_core = sorted(set(CORE_TICKERS) - set(closes))
     missing_stocks = sorted(set(EXPECTED_STOCKS) - set(closes))
@@ -428,6 +458,9 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: dateti
 
     if MARKET_BENCHMARK not in closes:
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
+
+    if label == "1D":
+        closes = refresh_lagging_daily_closes(closes, cfg, build_now)
 
     if dropped_forming:
         print(f"{label}: removed {dropped_forming} still-forming vendor bars (bar end after build clock {build_now.isoformat()})")

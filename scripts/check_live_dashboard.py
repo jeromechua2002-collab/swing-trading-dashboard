@@ -68,12 +68,15 @@ def verify(base):
 
 
 if __name__ == '__main__':
-    for attempt in range(4):
+    # GitHub Pages may report deployment before CDN edges serve the new build.
+    # Keep exact file hashing, but allow more time for propagation.
+    attempts = 10
+    for attempt in range(attempts):
         try:
             verify(sys.argv[1])
             break
         except (RuntimeError, OSError, ValueError) as exc:
-            print(f'Live verification attempt {attempt + 1}/4: {exc}', flush=True)
-            if attempt == 3:
+            print(f'Live verification attempt {attempt + 1}/{attempts}: {exc}', flush=True)
+            if attempt == attempts - 1:
                 raise SystemExit(1)
-            time.sleep(5)
+            time.sleep(15)

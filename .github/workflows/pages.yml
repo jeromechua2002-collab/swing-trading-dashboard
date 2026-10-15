@@ -5,8 +5,12 @@ on:
     branches: ["main"]
   workflow_dispatch:
   schedule:
-    - cron: "12 * * * 1-5"
-    - cron: "30 21 * * 1-5"
+    # Two post-close attempts rather than hourly builds during incomplete market data.
+    # 00:30 UTC Tue-Sat = 08:30 SGT, well after the US market closes.
+    - cron: "30 0 * * 2-6"
+    # Vendor data catch-up at 12:00 SGT Tue-Sat.
+    # Incomplete data still fails closed; manual dispatch remains available.
+    - cron: "0 4 * * 2-6"
 
 permissions:
   contents: read
@@ -72,6 +76,9 @@ jobs:
 
       - name: Test completed-bar policy (NYSE calendar, holidays, early closes, DST)
         run: python -m unittest discover -s scripts -p 'test_completed_bars.py' -v
+
+      - name: Test lagging market-data retries without synthetic backfill
+        run: python -m unittest discover -s scripts -p 'test_vendor_daily_retry.py' -v
 
       - name: Unit-test release provenance and data coherence
         run: python -m unittest discover -s scripts -p 'test_release_manifest.py' -v

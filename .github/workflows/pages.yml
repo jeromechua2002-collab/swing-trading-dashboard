@@ -5,8 +5,12 @@ on:
     branches: ["main"]
   workflow_dispatch:
   schedule:
-    - cron: "12 * * * 1-5"
-    - cron: "30 21 * * 1-5"
+    # Two post-close attempts rather than hourly builds during incomplete market data.
+    # 00:30 UTC Tue-Sat = 08:30 SGT, well after the US market closes.
+    - cron: "30 0 * * 2-6"
+    # Vendor data catch-up at 12:00 SGT Tue-Sat.
+    # Incomplete data still fails closed; manual dispatch remains available.
+    - cron: "0 4 * * 2-6"
 
 permissions:
   contents: read

@@ -1,0 +1,46 @@
+name: NUS Notion migration preflight (read-only)
+
+# Compares the production (personal) Notion data sources with their NUS copies.
+# Reads both workspaces, writes nothing, uploads no artifacts. Logs carry counts,
+# property names, trade numbers and market-data dates only.
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "scripts/nus_notion_preflight.py"
+      - ".github/workflows/nus-notion-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nus-notion-preflight
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --disable-pip-version-check requests==2.34.2
+
+      - name: Offline preflight tests
+        run: python -m unittest discover -s scripts -p 'test_nus_notion_preflight.py' -v
+
+      - name: Compare personal and NUS data sources
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NUS_TRADING_SYNC: ${{ secrets.NUS_TRADING_SYNC }}
+        run: |
+          if [ -z "$NOTION_TOKEN" ] || [ -z "$NUS_TRADING_SYNC" ]; then
+            echo "::notice::Secrets unavailable (fork PR); NUS preflight skipped"; exit 0
+          fi
+          python scripts/nus_notion_preflight.py

@@ -46,6 +46,7 @@ jobs:
           node scripts/test_execution_gate.cjs
           node scripts/test_breadth_confirmation.cjs
           python scripts/test_journal_snapshot.py
+          python -m unittest discover -s scripts -p 'test_nus_notion_preflight.py' -v
 
       - name: Dry-run journal exporter against real Notion data (counts only, nothing written)
         env:

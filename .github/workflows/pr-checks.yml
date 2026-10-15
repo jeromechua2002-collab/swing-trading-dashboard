@@ -36,6 +36,7 @@ jobs:
           node scripts/test_all_dashboards.cjs
           python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
           python -m unittest discover -s scripts -p 'test_completed_bars.py' -v
+          python -m unittest discover -s scripts -p 'test_vendor_daily_retry.py' -v
           python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
           python -m unittest discover -s scripts -p 'test_publication_privacy.py' -v
           python -m unittest discover -s scripts -p 'test_price_context.py' -v

@@ -8,9 +8,6 @@ on:
     - cron: "45 7 * * 2-6"
     - cron: "45 11 * * 2-6"
   workflow_dispatch:
-  push:
-    branches: ["fix/post-close-freshness-nus-mirror-20261016"]
-    paths: [".github/workflows/freshness-monitor.yml", "scripts/freshness_monitor.py"]
 
 permissions:
   contents: read

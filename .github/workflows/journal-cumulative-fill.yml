@@ -1,0 +1,42 @@
+name: Journal cumulative P/L fill (one-off, owner-approved)
+
+# Temporary: fills blank Cumulative P/L for trades #11-#14 in the production journal,
+# copies #11-#14 to the NUS journal, then runs the read-only preflight.
+# Removed from the branch after it runs. Logs carry trade numbers only.
+on:
+  push:
+    branches: ["chore/nus-notion-preflight-20261015"]
+    paths: [".github/workflows/journal-cumulative-fill.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: journal-cumulative-fill
+  cancel-in-progress: false
+
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NUS_TRADING_SYNC: ${{ secrets.NUS_TRADING_SYNC }}
+      FILL_TRADES: "11,12,13,14"
+      NUS_CATCHUP_TRADES: "11,12,13,14"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --disable-pip-version-check requests==2.34.2
+      - name: Offline tests
+        run: python -m unittest discover -s scripts -p 'test_*cumulative*.py' -v && python -m unittest discover -s scripts -p 'test_nus_*.py' -v
+      - name: Plan production fill
+        run: python scripts/journal_fill_cumulative.py
+      - name: Apply production fill
+        run: python scripts/journal_fill_cumulative.py --apply
+      - name: Copy trades to NUS
+        run: python scripts/nus_journal_catchup.py --apply
+      - name: Verify with the read-only preflight
+        run: python scripts/nus_notion_preflight.py

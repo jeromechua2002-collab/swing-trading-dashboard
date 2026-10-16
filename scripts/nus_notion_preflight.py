@@ -254,20 +254,27 @@ def run(personal, nus, report=None):
         p_n, n_n = len(personal.rows(p_ds["id"])), len(nus.rows(n_ds["id"]))
         report.add("PASS" if p_n == n_n else "FAIL", f"Account: rows personal={p_n} nus={n_n}")
 
+    # Rotation must match exactly: keys, every stored value, active/inactive rows and latest dates.
+    # (Earlier versions only reported rotation differences, which let a stale NUS copy PASS.)
+    from nus_rotation_catchup import plan_role
     for role, (key, date_props) in ROTATION_KEYS.items():
         if role not in found:
             continue
         p_ds, n_ds = found[role]
         p_rows, n_rows = personal.rows(p_ds["id"]), nus.rows(n_ds["id"])
-        cmp = compare_rows(p_rows, n_rows, key, [])
-        if cmp["duplicate_keys_nus"]:
-            report.add("FAIL", f"{role}: {len(cmp['duplicate_keys_nus'])} duplicated {key} key(s) in NUS")
-        report.add("INFO", f"{role}: rows personal={cmp['personal_rows']} nus={cmp['nus_rows']}; "
-                           f"keys missing in NUS={len(cmp['missing_in_nus'])} extra={len(cmp['extra_in_nus'])}")
+        fields = [f for f, t in schema(p_ds).items() if t not in COMPUTED]
+        try:
+            plan = plan_role(p_rows, n_rows, key, fields)
+        except RuntimeError as exc:
+            report.add("FAIL", f"{role}: {exc}")
+            continue
         p_dates, n_dates = latest_dates(p_rows, date_props), latest_dates(n_rows, date_props)
-        for name in date_props:
-            report.add("INFO", f"{role}: latest {name} personal={p_dates[name]['latest']} nus={n_dates[name]['latest']} "
-                               f"(distinct dates {p_dates[name]['distinct']}/{n_dates[name]['distinct']})")
+        lagging = [d for d in date_props if p_dates[d]["latest"] != n_dates[d]["latest"]]
+        diffs = len(plan["create"]) + len(plan["update"]) + plan["nus_only"]
+        detail = (f"rows personal={len(p_rows)} nus={len(n_rows)}; missing={len(plan['create'])} differing={len(plan['update'])} "
+                  f"nus_only={plan['nus_only']}; inactive {plan['inactive_prod']}/{plan['inactive_nus']}; "
+                  + " ".join(f"latest {d} {p_dates[d]['latest']}/{n_dates[d]['latest']}" for d in date_props))
+        report.add("FAIL" if diffs or lagging else "PASS", f"{role}: {detail}")
     return report
 
 

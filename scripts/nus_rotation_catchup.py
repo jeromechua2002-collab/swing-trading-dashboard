@@ -64,7 +64,7 @@ def plan_role(p_rows, n_rows, key, fields):
         if all(same(pf.value(props.get(f, {"type": None})), pf.value(target["properties"].get(f, {"type": None}))) for f in fields):
             unchanged += 1
         else:
-            update.append((target["id"], props))
+            update.append((target.get("id"), props))
     return {"create": create, "update": update, "unchanged": unchanged, "nus_only": len(set(n) - set(p)),
             "inactive_prod": sum(inactive(r["properties"]) for r in p_rows),
             "inactive_nus": sum(inactive(r["properties"]) for r in n_rows)}

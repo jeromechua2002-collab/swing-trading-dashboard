@@ -74,15 +74,15 @@ def trades_rows():
     return [trade(1), trade(2, net=-5.0), trade(3, SECRET_SYMBOL, SECRET_AMOUNT), trade(4, status="Open")]
 
 
-def world(nus_trades=None, nus_account_target=None, searchable=None):
+def world(nus_trades=None, nus_account_target=None, searchable=None, nus_day="2026-10-14"):
     personal = Fake({P[r]: ds(r, P[r], P["Account"]) for r in P},
                     {P["Trades"]: trades_rows(), P["Account"]: [{"properties": {}}],
                      P["Rotation Chart"]: [chart("SMH|5D|05", "2026-10-14")],
                      P["Rotation Signal"]: [signal("XLK", "2026-10-14")]})
     nus = Fake({NUS[r]: ds(r, NUS[r], nus_account_target or NUS["Account"]) for r in NUS},
                {NUS["Trades"]: nus_trades if nus_trades is not None else trades_rows(), NUS["Account"]: [{"properties": {}}],
-                NUS["Rotation Chart"]: [chart("SMH|5D|05", "2026-10-13")],
-                NUS["Rotation Signal"]: [signal("XLK", "2026-10-13")]}, searchable=searchable)
+                NUS["Rotation Chart"]: [chart("SMH|5D|05", nus_day)],
+                NUS["Rotation Signal"]: [signal("XLK", nus_day)]}, searchable=searchable)
     return personal, nus
 
 
@@ -98,7 +98,20 @@ class Preflight(unittest.TestCase):
         report, out = run(*world())
         self.assertFalse(report.failed, out)
         self.assertIn("latest 3 production trades present once and identical in NUS: 3/3", out)
-        self.assertIn("latest Date personal=2026-10-14 nus=2026-10-13", out)
+        self.assertIn("Rotation Chart: rows personal=1 nus=1; missing=0 differing=0", out)
+
+    def test_stale_nus_rotation_fails(self):
+        report, out = run(*world(nus_day="2026-10-13"))
+        self.assertTrue(report.failed)
+        self.assertIn("FAIL Rotation Chart", out)
+        self.assertIn("latest Date 2026-10-14/2026-10-13", out)
+
+    def test_missing_rotation_rows_fail(self):
+        personal, nus = world()
+        nus._rows[NUS["Rotation Signal"]] = []
+        report, out = run(personal, nus)
+        self.assertTrue(report.failed)
+        self.assertIn("FAIL Rotation Signal", out)
 
     def test_linked_view_of_original_fails(self):
         personal, nus = world()

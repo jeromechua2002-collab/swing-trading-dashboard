@@ -13,19 +13,26 @@ on:
     # Catch-up at 11:30 SGT Tue-Sat if the prior US close missed the main run.
     # The sync checks Notion against the latest SPY date and skips a fresh snapshot.
     - cron: "30 3 * * 2-6"
+    # Extra post-close slots: GitHub has started scheduled runs 2-5 h late, and Yahoo's
+    # daily bar can appear after the 22:15 run. Each run skips when Notion is current.
+    - cron: "30 1 * * 2-6"
+    - cron: "0 6 * * 2-6"
 
 permissions:
   contents: read
 
 concurrency:
   group: "notion-rotation-sync"
-  cancel-in-progress: true
+  # Never cancel mid-write: a queued run waits, then finds everything current.
+  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NUS_TRADING_SYNC: ${{ secrets.NUS_TRADING_SYNC }}
       NOTION_ROTATION_CHART_DS: "485d139e-0f47-45b2-bce8-bbd40f29bf33"
       NOTION_ROTATION_SIGNAL_DS: "57786668-c8d4-4604-b009-a1706766cec3"
 
@@ -54,3 +61,14 @@ jobs:
 
       - name: Refresh chart and state map
         run: python scripts/sync_notion_rotation.py
+
+      # Production stays the personal workspace. NUS receives an exact copy of the two
+      # rotation databases only: keyed creates and updates, never deletes, never journal.
+      # Runs only after a successful sync, so both workspaces carry the same session.
+      - name: Mirror rotation databases to NUS
+        if: env.NUS_TRADING_SYNC != ''
+        run: python scripts/nus_rotation_catchup.py --apply
+
+      - name: Verify strict NUS rotation parity
+        if: env.NUS_TRADING_SYNC != ''
+        run: python scripts/nus_rotation_catchup.py

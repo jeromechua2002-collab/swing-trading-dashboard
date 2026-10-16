@@ -11,6 +11,10 @@ on:
     # Vendor data catch-up at 12:00 SGT Tue-Sat.
     # Incomplete data still fails closed; manual dispatch remains available.
     - cron: "0 4 * * 2-6"
+    # Extra slots absorb GitHub scheduler delays (runs observed 2-5 h late; the
+    # 16 Oct 00:30 UTC run never started). Each build still fails closed.
+    - cron: "30 2 * * 2-6"
+    - cron: "30 6 * * 2-6"
 
 permissions:
   contents: read

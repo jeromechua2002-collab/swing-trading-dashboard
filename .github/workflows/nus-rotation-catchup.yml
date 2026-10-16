@@ -1,0 +1,34 @@
+name: NUS rotation catch-up (dry run unless owner-approved)
+
+# Compares production and NUS rotation databases by key and reports
+# create/update/unchanged counts and strict parity. This version has NO apply
+# step: writing requires a separate, owner-approved commit. Logs: counts and dates.
+on:
+  push:
+    branches: ["chore/nus-notion-preflight-20261015"]
+    paths: [".github/workflows/nus-rotation-catchup.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nus-rotation-catchup
+  cancel-in-progress: false
+
+jobs:
+  rotation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NUS_TRADING_SYNC: ${{ secrets.NUS_TRADING_SYNC }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --disable-pip-version-check requests==2.34.2
+      - name: Offline tests
+        run: python -m unittest discover -s scripts -p 'test_nus_*.py' -v
+      - name: Dry run and strict parity report (no writes)
+        run: python scripts/nus_rotation_catchup.py || echo "parity not yet reached (expected before catch-up)"

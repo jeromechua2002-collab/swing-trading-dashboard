@@ -40,6 +40,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_release_manifest.py' -v
           python -m unittest discover -s scripts -p 'test_publication_privacy.py' -v
           python -m unittest discover -s scripts -p 'test_price_context.py' -v
+          python -m unittest discover -s scripts -p 'test_thematic_rrg.py' -v
           python -m unittest discover -s scripts -p 'test_sector_breadth.py' -v
           node scripts/test_desk_health.cjs
           node scripts/test_desk_home.cjs
@@ -58,6 +59,7 @@ jobs:
       - name: Build market data and run data-dependent audits
         run: |
           python scripts/build_rrg_data.py
+          python scripts/build_thematic_rrg.py
           python scripts/validate_rrg.py
           python scripts/audit_rrg_reference_daily.py
           python scripts/rrg_sensitivity.py

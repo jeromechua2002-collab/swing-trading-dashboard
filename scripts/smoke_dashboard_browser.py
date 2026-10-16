@@ -58,7 +58,7 @@ def run():
         assert "No synchronized release" not in page.locator("#journalStatus").inner_text()
         page.goto(BASE+"trade-gate.html",wait_until="domcontentloaded")
         assert page.locator("#entry").count()==1
-        for path in ("sector-breadth.html","equity.html","calendar.html","sectors.html","industries.html","rates.html"):
+        for path in ("sector-breadth.html","equity.html","calendar.html","sectors.html","industries.html","rates.html","thematic-rrg.html"):
             r=page.goto(BASE+path,wait_until="domcontentloaded")
             assert r and r.status==200,path
             assert page.locator("body").inner_text().strip(),path

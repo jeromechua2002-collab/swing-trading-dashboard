@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<title>Thematic RRG | Market Rotation Lab</title>
+<style>
+:root{--bg:#0b0e13;--panel:#121722;--panel2:#0f141d;--border:#27313d;--text:#eef3f8;--muted:#8e99a8;--green:#39b77a;--red:#df6572;--blue:#5b9ee8;--amber:#dfb347}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+a{color:#8cc0ff;text-decoration:none}a:hover{text-decoration:underline}
+.bar{position:sticky;top:0;z-index:20;background:rgba(11,14,19,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(10px)}
+.bar-in{max-width:1500px;margin:auto;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand strong{font-size:14px}.brand span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.brand .proto{display:inline-block;margin-top:0;font-size:10px;font-weight:700;letter-spacing:.06em;color:#1a1300;background:var(--amber);border-radius:5px;padding:2px 6px;margin-left:6px;vertical-align:2px}
+.nav{display:flex;gap:6px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid #303b49;background:#101620;color:#dce4ed;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn.active{background:rgba(57,183,122,.13);border-color:rgba(57,183,122,.42);color:#e4f8ec}
+.btn:disabled{opacity:.45;cursor:default}
+main{max-width:1500px;margin:0 auto;padding:14px 16px 40px}
+h1{font-size:24px;margin:8px 0 4px}h2{font-size:15px;margin:0}
+.sub{font-size:11px;color:var(--muted);max-width:900px;margin:0 0 10px}
+.notice{font-size:11px;line-height:1.55;color:#a6b1bf;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);margin-bottom:10px}
+.notice.warn{border-color:rgba(223,179,71,.45);background:rgba(223,179,71,.07);color:#ecd9a6}
+.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.controls label{font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{font-size:10.5px;border:1px solid #303b49;border-radius:999px;padding:4px 9px;cursor:pointer;user-select:none;background:#101620;display:flex;gap:5px;align-items:center}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chip.off{opacity:.38}
+.chip.na{border-style:dashed}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.head{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.head span{font-size:10.5px;color:var(--muted)}
+.plotwrap{position:relative}
+#rrg{width:100%;aspect-ratio:1.35;display:block}
+.tip{position:absolute;display:none;pointer-events:none;z-index:5;background:#090d12;border:1px solid #364250;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:260px}
+.side{display:flex;flex-direction:column;gap:10px}
+.sidecard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px}
+.sidecard h3{font-size:12px;margin:0 0 8px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}.row:last-child{border-bottom:0}
+.muted{color:var(--muted)}.Leading{color:var(--green)}.Weakening{color:var(--amber)}.Lagging{color:var(--red)}.Improving{color:var(--blue)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:11.5px}
+th,td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;white-space:nowrap;vertical-align:top}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel);cursor:pointer}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.wrap{white-space:normal;min-width:170px}
+.badge{display:inline-block;font-size:10px;border-radius:5px;padding:2px 6px;border:1px solid}
+.b-ok{color:#bdf0d4;border-color:rgba(57,183,122,.5);background:rgba(57,183,122,.1)}
+.b-part{color:#cfe2fb;border-color:rgba(91,158,232,.5);background:rgba(91,158,232,.1)}
+.b-div{color:#f1dca5;border-color:rgba(223,179,71,.5);background:rgba(223,179,71,.08)}
+.b-weak{color:#f6c3c9;border-color:rgba(223,101,114,.5);background:rgba(223,101,114,.08)}
+.b-na{color:var(--muted);border-color:#3a4554}
+.fit-pure{color:#bdf0d4}.fit-proxy{color:#f1dca5}
+section{margin-top:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.heat td{text-align:center;font-variant-numeric:tabular-nums;padding:5px 4px;font-size:10.5px}
+.heat th{text-align:center;cursor:default;padding:5px 4px}
+.foot{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+@media(max-width:1050px){.grid,.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <div class="brand"><strong>Market Rotation Lab</strong><span class="proto">RESEARCH VIEW</span><span>Thematic Rotation RRG · display only · not used by the Radar, Notion sync or trade gates</span></div>
+  <nav class="nav" id="nav"></nav>
+</div></header>
+<main>
+<div id="feedStatus" class="notice warn" hidden></div>
+<h1>Thematic Rotation RRG</h1>
+<p class="sub" id="asofLine"></p>
+<p class="sub">Which investment themes are gaining or losing relative leadership against SPY, including themes that cut across S&amp;P sectors. Each theme is represented by one ETF. Some are real thematic funds and some are imperfect proxies, as labelled.</p>
+
+<div class="notice"><strong>Method: our public approximation, not proprietary JdK RRG®.</strong> The formula is imported unchanged from the production <code>rrg_public_approx()</code> (WMA <span id="mWma"></span> → z-score <span id="mZ"></span> → ROC <span id="mRoc"></span> → WMA <span id="mMw"></span> → z-score), with the same SPY benchmark, completed-bar policy and per-timeframe lookbacks as the Rotation Radar. <strong>Relative outperformance is a price observation only. It is not evidence of institutional or fund inflows.</strong> Research view only, not a trade signal.</div>
+<div id="histWarn"></div>
+
+<div class="controls">
+  <div class="nav" id="tfBtns"></div>
+  <label>Trail <input type="range" id="trail" min="2" max="16" value="8"><b id="trailV">8</b></label>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="grid">
+  <section class="card" style="margin-top:0">
+    <div class="head"><h2 id="chartTitle">Thematic RRG</h2><span id="stamp"></span></div>
+    <div class="plotwrap"><svg id="rrg" viewBox="0 0 1000 740" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Thematic relative rotation graph"></svg><div class="tip" id="tip"></div></div>
+  </section>
+  <aside class="side">
+    <div class="sidecard"><h3>Quadrant summary</h3><div id="quadSum"></div></div>
+    <div class="sidecard"><h3>Reading guide</h3>
+      <div class="foot" style="margin-top:0"><b class="Leading">Leading</b>: relative strength above SPY and still rising. <b class="Weakening">Weakening</b>: above SPY but momentum fading. <b class="Lagging">Lagging</b>: below SPY and falling. <b class="Improving">Improving</b>: below SPY but momentum turning up. Rotation is usually clockwise. <b>Absolute check</b> uses the production <code>summarize_closes()</code> rule (close vs EMA10/EMA20). A theme can rotate "Improving" because it is falling <em>less</em> than SPY.</div></div>
+    <div class="sidecard"><h3>Existing dashboards</h3><div id="links" class="foot" style="margin-top:0"></div></div>
+  </aside>
+</div>
+
+<section class="card">
+  <div class="head"><h2>Theme leadership</h2><span>Sorted by quadrant, then distance from 100/100. Click a header to re-sort.</span></div>
+  <div class="tablewrap"><table id="lead"></table></div>
+</section>
+
+<section class="card">
+  <div class="head"><h2>Data quality &amp; thematic fit</h2><span>Issuer data checked 2026-10-16 (holdings refreshed manually). History is Yahoo raw Close, the same vendor and completed-bar policy as the RRG.</span></div>
+  <div class="tablewrap"><table id="facts"></table></div>
+</section>
+
+<section class="two">
+  <div class="card"><div class="head"><h2>Correlation of excess returns vs SPY</h2><span id="corrWin"></span></div><div class="tablewrap" style="padding:8px"><table class="heat" id="corr"></table></div>
+    <div class="foot" style="padding:0 12px 12px">Daily (ETF − SPY) returns over a window shared by all 10 funds. Values ≥ 0.80 mean two "themes" are mostly the same relative trade.</div></div>
+  <div class="card"><div class="head"><h2>Holdings overlap (lower bound)</h2><span>Σ min(weight) over shared top holdings, %</span></div><div class="tablewrap" style="padding:8px"><table class="heat" id="ovl"></table></div>
+    <div class="foot" style="padding:0 12px 12px">Uses only the top 10–15 holdings each issuer publishes, so true overlap is ≥ the figure shown. REMX: VanEck pages blocked automated access, so current weights were not verified (n/a). DRAM weights are a third-party Aug-2026 snapshot.</div></div>
+</section>
+<p class="foot" id="excluded"></p>
+<p class="foot">Built by <code>scripts/build_thematic_rrg.py</code> in the Pages workflow, reusing <code>build_rrg_data.py</code> unchanged. Display only: this view is not read by the Trade Opportunity Radar, the Notion sync or the 10-session evaluation. A two-week shadow pilot (19–30 Oct 2026) is evaluating whether it adds screening value.</p>
+</main>
+
+<script>
+let D=null;
+const SITE="";
+const NS="http://www.w3.org/2000/svg";
+const QC={Leading:"#39b77a",Weakening:"#dfb347",Lagging:"#df6572",Improving:"#5b9ee8"};
+const QBG={Leading:"rgba(57,183,122,.10)",Weakening:"rgba(223,179,71,.10)",Lagging:"rgba(223,101,114,.095)",Improving:"rgba(91,158,232,.10)"};
+const QORD={Leading:0,Improving:1,Weakening:2,Lagging:3};
+const PAL=["#53a6ff","#ff6f91","#65d39a","#f2b84b","#a889ff","#55c8d8","#ff8b5c","#8dc85a","#dd76d8","#d0b84f","#57b5a8","#e97777"];
+let TH=[], COLOR={};
+let tf="1D", trail=8, sortKey="quad", sortDir=1;
+const hidden=new Set();
+const $=id=>document.getElementById(id);
+const E=(tag,attrs,text)=>{const n=document.createElementNS(NS,tag);for(const k in attrs||{})n.setAttribute(k,attrs[k]);if(text!=null)n.textContent=text;return n};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=(v,d=2)=>v==null||!isFinite(v)?"—":Number(v).toFixed(d);
+const quad=(x,y)=>x>=100&&y>=100?"Leading":x>=100?"Weakening":y<100?"Lagging":"Improving";
+const fitClass=f=>/^Pure|^Thematic index/.test(f)?"fit-pure":"fit-proxy";
+function dashLink(l){return l.mode==="stocks"?SITE+"rrg.html?mode=stocks&sector="+encodeURIComponent(l.symbol):SITE+"rrg.html?mode="+l.mode}
+function absFor(t){const a=(D.absolute[tf==="1W"?"1W":"1D"]||{})[t];return a&&!a.error?a:null}
+function confirm(q,a){
+  if(!a) return ["b-na","No absolute data"];
+  if(q==="Leading"||q==="Improving"){
+    if(a.state==="Uptrend") return ["b-ok","Confirmed: price uptrend"];
+    if(a.state==="Mixed") return ["b-part","Partial: price mixed"];
+    return ["b-div","Relative only: price falling"];
+  }
+  if(a.state==="Uptrend") return ["b-part","Price up, lagging SPY"];
+  if(a.state==="Downtrend") return ["b-weak","Weak: relative and absolute"];
+  return ["b-div","Relative weak, price mixed"];
+}
+
+function renderNav(){
+  const pages=[["index.html","Home"],["rrg.html?mode=sectors","Sector RRG"],["rrg.html?mode=industries","Industry RRG"],["rrg.html?mode=stocks&sector=XLK","Stock RRG"],["stock-leadership.html","Stock Leadership"],["rotation-lab.html","Rotation Map"]];
+  $("nav").innerHTML=pages.map(([h,l])=>`<a class="btn" href="${SITE+h}">${l}</a>`).join("");
+  $("tfBtns").innerHTML=Object.keys(D.timeframes).map(k=>`<button class="btn${k===tf?" active":""}" data-tf="${k}">${k}</button>`).join("");
+  $("tfBtns").querySelectorAll("button").forEach(b=>b.onclick=()=>{tf=b.dataset.tf;render()});
+  const m=D.method;$("mWma").textContent=m.smooth_wma;$("mZ").textContent=m.normalize_window;$("mRoc").textContent=m.momentum_roc;$("mMw").textContent=m.momentum_wma;
+}
+function renderChips(){
+  const sy=D.timeframes[tf].symbols;
+  $("chips").innerHTML=TH.map(t=>{const na=sy[t.ticker].status!=="ok";return `<span class="chip${hidden.has(t.ticker)?" off":""}${na?" na":""}" data-t="${t.ticker}" title="${esc(t.theme)}${na?" (insufficient history on "+tf+")":""}"><i style="background:${COLOR[t.ticker]}"></i>${t.ticker}${na?" ⓘ":""}</span>`}).join("");
+  $("chips").querySelectorAll(".chip").forEach(c=>c.onclick=()=>{const t=c.dataset.t;hidden.has(t)?hidden.delete(t):hidden.add(t);render()});
+}
+function renderWarn(){
+  const sy=D.timeframes[tf].symbols;
+  const bad=Object.entries(sy).filter(([,v])=>v.status!=="ok");
+  $("histWarn").innerHTML=bad.length?`<div class="notice warn"><strong>Insufficient history on ${tf}:</strong> `+bad.map(([t,v])=>`${t} has ${v.bars} completed ${tf} bars (since ${v.first_bar}), which gives ${v.rrg_points} of the ${v.needed_points} RRG points a full trail needs. It is <b>not plotted</b> and has no estimate on this timeframe.`).join(" ")+`</div>`:"";
+}
+function renderChart(){
+  const svg=$("rrg");svg.innerHTML="";
+  const sy=D.timeframes[tf].symbols;
+  const vis=TH.map(t=>t.ticker).filter(t=>!hidden.has(t)&&sy[t].status==="ok");
+  const pts=vis.flatMap(t=>sy[t].trail.slice(-trail));
+  let span=Math.max(1.5,...pts.map(p=>Math.abs(p.ratio-100)),...pts.map(p=>Math.abs(p.momentum-100)))*1.12;
+  const W=1000,H=740,L=58,R=18,T=18,B=48;
+  const sx=v=>L+(v-(100-span))/(2*span)*(W-L-R), sy_=v=>T+(1-(v-(100-span))/(2*span))*(H-T-B);
+  const cx=sx(100),cy=sy_(100);
+  [["Improving",L,T,cx-L,cy-T],["Leading",cx,T,W-R-cx,cy-T],["Lagging",L,cy,cx-L,H-B-cy],["Weakening",cx,cy,W-R-cx,H-B-cy]].forEach(([q,x,y,w,h])=>{
+    svg.append(E("rect",{x,y,width:w,height:h,fill:QBG[q]}));
+    const left=q==="Improving"||q==="Lagging", top=q==="Improving"||q==="Leading";
+    svg.append(E("text",{x:left?x+12:x+w-12,y:top?y+22:y+h-12,"text-anchor":left?"start":"end",fill:QC[q],"font-size":15,"font-weight":700,opacity:.75},q));
+  });
+  const step=span>6?2:span>3?1:0.5;
+  for(let v=Math.ceil((100-span)/step)*step;v<=100+span;v+=step){
+    const x=sx(v),y=sy_(v);
+    svg.append(E("line",{x1:x,x2:x,y1:T,y2:H-B,stroke:"rgba(255,255,255,.05)"}));
+    svg.append(E("line",{x1:L,x2:W-R,y1:y,y2:y,stroke:"rgba(255,255,255,.05)"}));
+    svg.append(E("text",{x,y:H-B+16,"text-anchor":"middle",fill:"#8e99a8","font-size":11},v.toFixed(step<1?1:0)));
+    svg.append(E("text",{x:L-8,y:y+4,"text-anchor":"end",fill:"#8e99a8","font-size":11},v.toFixed(step<1?1:0)));
+  }
+  svg.append(E("line",{x1:cx,x2:cx,y1:T,y2:H-B,stroke:"#55606e","stroke-width":1.2}));
+  svg.append(E("line",{x1:L,x2:W-R,y1:cy,y2:cy,stroke:"#55606e","stroke-width":1.2}));
+  svg.append(E("text",{x:(L+W-R)/2,y:H-8,"text-anchor":"middle",fill:"#aab4c1","font-size":12},"RS-Ratio (public approx.) →"));
+  const yl=E("text",{x:16,y:(T+H-B)/2,"text-anchor":"middle",fill:"#aab4c1","font-size":12,transform:`rotate(-90 16 ${(T+H-B)/2})`},"RS-Momentum (public approx.) →");svg.append(yl);
+  const tip=$("tip");
+  vis.forEach(t=>{
+    const tr=sy[t].trail.slice(-trail), c=COLOR[t];
+    const d=tr.map((p,i)=>(i?"L":"M")+sx(p.ratio).toFixed(1)+","+sy_(p.momentum).toFixed(1)).join("");
+    svg.append(E("path",{d,fill:"none",stroke:c,"stroke-width":2,opacity:.75,"stroke-linejoin":"round"}));
+    tr.forEach((p,i)=>{if(i<tr.length-1)svg.append(E("circle",{cx:sx(p.ratio),cy:sy_(p.momentum),r:2.6,fill:c,opacity:.35+.5*i/tr.length}))});
+    const h=tr[tr.length-1], hx=sx(h.ratio), hy=sy_(h.momentum);
+    const head=E("circle",{cx:hx,cy:hy,r:7,fill:c,stroke:"#0b0e13","stroke-width":2,style:"cursor:pointer"});
+    svg.append(head);
+    svg.append(E("text",{x:hx+10,y:hy-8,fill:c,"font-size":13,"font-weight":700},t));
+    const th=TH.find(x=>x.ticker===t), q=quad(h.ratio,h.momentum), a=absFor(t);
+    head.onmouseenter=()=>{tip.style.display="block";tip.innerHTML=`<b>${t}</b> · ${esc(th.theme)}<br><span class="${q}">${q}</span> · RS-Ratio ${fmt(h.ratio)} · RS-Mom ${fmt(h.momentum)}<br>Bar ${h.time.slice(0,16).replace("T"," ")}<br>Absolute (${tf==="1W"?"weekly":"daily"}): ${a?a.state:"n/a"}<br><span class="muted">${esc(th.fit)}</span>`};
+    head.onmousemove=e=>{const r=svg.parentNode.getBoundingClientRect();tip.style.left=Math.min(e.clientX-r.left+14,r.width-270)+"px";tip.style.top=(e.clientY-r.top+14)+"px"};
+    head.onmouseleave=()=>tip.style.display="none";
+  });
+  const last=D.timeframes[tf].benchmark_last;
+  $("chartTitle").textContent=`Thematic RRG · ${tf} vs SPY`;
+  $("stamp").textContent=`Last completed SPY bar: ${String(last).slice(0,16)} · trail ${trail} of ${D.tail_points} · built ${D.generated_at.slice(0,16).replace("T"," ")} UTC`;
+}
+function rows(){
+  const sy=D.timeframes[tf].symbols;
+  return TH.map(t=>{const s=sy[t.ticker];const a=absFor(t.ticker);
+    if(s.status!=="ok")return{t,s,a,q:"Insufficient",ord:9};
+    const h=s.trail[s.trail.length-1];return{t,s,a,h,q:s.quadrant,ord:QORD[s.quadrant]}});
+}
+function renderTable(){
+  const cols=[["quad","Quadrant"],["ticker","ETF"],["theme","Theme"],["ratio","RS-Ratio"],["mom","RS-Mom"],["dist","Distance"],["rel","Rel. ret 5 bars"],["abs","Absolute"],["conf","Confirmation"],["fit","Fit"],["links","Drill into"]];
+  let r=rows();
+  const key={quad:x=>x.ord*1000-(x.s.distance||0),ticker:x=>x.t.ticker,theme:x=>x.t.theme,ratio:x=>x.h?-x.h.ratio:1e9,mom:x=>x.h?-x.h.momentum:1e9,dist:x=>-(x.s.distance||-1),rel:x=>x.s.rel5_pct!=null?-x.s.rel5_pct:1e9,abs:x=>x.a?x.a.state:"z",conf:x=>x.ord,fit:x=>x.t.fit,links:x=>x.t.ticker}[sortKey];
+  r.sort((a,b)=>{const A=key(a),B=key(b);return (A>B?1:A<B?-1:0)*sortDir});
+  const html=["<thead><tr>"+cols.map(([k,l])=>`<th data-k="${k}">${l}${sortKey===k?(sortDir>0?" ▾":" ▴"):""}</th>`).join("")+"</tr></thead><tbody>"];
+  r.forEach(x=>{
+    const off=hidden.has(x.t.ticker)?' style="opacity:.55"':"";
+    const links=x.t.links.map(l=>`<a href="${dashLink(l)}">${l.symbol}${l.mode==="stocks"?" stocks":""}</a>`).join(" · ");
+    if(!x.h){html.push(`<tr${off}><td class="muted">Insufficient history</td><td><b style="color:${COLOR[x.t.ticker]}">${x.t.ticker}</b></td><td>${esc(x.t.theme)}</td><td class="num muted" colspan="4">${x.s.bars} bars on ${tf}; ${x.s.rrg_points}/${x.s.needed_points} RRG points</td><td>${x.a?x.a.state:"—"}</td><td><span class="badge b-na">Not rated</span></td><td class="wrap ${fitClass(x.t.fit)}">${esc(x.t.fit)}</td><td>${links}</td></tr>`);return}
+    const [cls,lab]=confirm(x.q,x.a);
+    html.push(`<tr${off}><td class="${x.q}"><b>${x.q}</b></td><td><b style="color:${COLOR[x.t.ticker]}">${x.t.ticker}</b></td><td>${esc(x.t.theme)}<div class="muted" style="font-size:10px">${esc(x.t.sectors)}</div></td><td class="num">${fmt(x.h.ratio)}</td><td class="num">${fmt(x.h.momentum)}</td><td class="num">${fmt(x.s.distance)}</td><td class="num ${x.s.rel5_pct>=0?"Leading":"Lagging"}">${fmt(x.s.rel5_pct)}%</td><td>${x.a?`${x.a.state}<div class="muted" style="font-size:10px">20-bar ${fmt(x.a.return20_pct,1)}%</div>`:"—"}</td><td><span class="badge ${cls}">${lab}</span></td><td class="wrap ${fitClass(x.t.fit)}">${esc(x.t.fit)}</td><td>${links}</td></tr>`);
+  });
+  html.push("</tbody>");$("lead").innerHTML=html.join("");
+  $("lead").querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}renderTable()});
+}
+function renderQuad(){
+  const sy=D.timeframes[tf].symbols, g={Leading:[],Improving:[],Weakening:[],Lagging:[]},na=[];
+  TH.forEach(t=>{const s=sy[t.ticker];if(hidden.has(t.ticker))return;s.status==="ok"?g[s.quadrant].push(t.ticker):na.push(t.ticker)});
+  $("quadSum").innerHTML=Object.entries(g).map(([q,l])=>`<div class="row"><b class="${q}">${q}</b><span>${l.join(", ")||'<span class="muted">—</span>'}</span></div>`).join("")+(na.length?`<div class="row"><b class="muted">Insufficient</b><span>${na.join(", ")}</span></div>`:"");
+  $("links").innerHTML=TH.map(t=>`<div class="row"><span>${t.ticker} · ${esc(t.theme)}</span><span>${t.links.map(l=>`<a href="${dashLink(l)}">${l.symbol}</a>`).join(" · ")}</span></div>`).join("");
+}
+function renderStatic(){
+  const F=D.facts, C=D.concentration;
+  const firstHist=t=>{const ok=Object.keys(D.timeframes).filter(k=>D.timeframes[k].symbols[t].status==="ok");return ok.join(" ")};
+  $("facts").innerHTML="<thead><tr><th>ETF</th><th>Fund (issuer)</th><th>Objective / index</th><th>Inception (issuer)</th><th>First Yahoo bar</th><th>Supported TFs</th><th>Exp. ratio</th><th>AUM</th><th>Holdings</th><th>Top-3 wt</th><th>20d $ vol</th><th>β to SPY</th><th>Ann. vol</th><th>Fit</th></tr></thead><tbody>"+
+   TH.map(t=>{const f=F[t.ticker],c=C[t.ticker];return `<tr><td><b style="color:${COLOR[t.ticker]}">${t.ticker}</b></td><td><a href="${f.url}" target="_blank" rel="noopener">${esc(f.name)}</a></td><td class="wrap">${esc(f.style)}</td><td>${f.inception}</td><td>${D.first_bar[t.ticker]}</td><td>${firstHist(t.ticker)}</td><td class="num">${f.er!=null?f.er.toFixed(2)+"%":"—"}</td><td>${esc(f.aum)}</td><td class="num">${f.n}</td><td class="num">${c.top3_pct!=null?c.top3_pct+"%":"n/a"}</td><td class="num">$${D.adv20_usd_m[t.ticker]}M</td><td class="num">${fmt(D.beta_spy[t.ticker])}</td><td class="num">${fmt(D.vol_ann_pct[t.ticker],0)}%</td><td class="wrap ${fitClass(t.fit)}">${esc(t.fit)}</td></tr>`}).join("")+"</tbody>";
+  const tk=TH.map(t=>t.ticker);
+  const heat=(M,scale,fmtv)=>"<thead><tr><th></th>"+tk.map(t=>`<th>${t}</th>`).join("")+"</tr></thead><tbody>"+tk.map(a=>"<tr><th>"+a+"</th>"+tk.map(b=>{const v=M[a]&&M[a][b];if(v==null)return '<td class="muted">n/a</td>';if(a===b)return '<td class="muted">·</td>';const k=Math.max(0,Math.min(1,v/scale));return `<td style="background:rgba(223,101,114,${(k*.75).toFixed(2)});color:${k>.6?"#fff":"#c7d0db"}">${fmtv(v)}</td>`}).join("")+"</tr>").join("")+"</tbody>";
+  $("corr").innerHTML=heat(D.correlation.excess_vs_spy,1,v=>v.toFixed(2));
+  $("ovl").innerHTML=heat(D.overlap_topN_min_weight_pct,20,v=>v?v.toFixed(1):"0");
+  $("corrWin").textContent=D.correlation.window;
+  $("excluded").innerHTML="<b>Not in the 10-theme universe:</b> "+D.excluded.map(x=>`<b>${x.ticker}</b>: ${esc(x.reason)}`).join(" ");
+}
+function renderAsOf(){const st=Object.entries(D.stale||{}).filter(([,v])=>v.length);$("asofLine").textContent="Last completed daily bar "+String(D.timeframes["1D"].benchmark_last).slice(0,10)+" · built "+String(D.generated_at).slice(0,16).replace("T"," ")+" UTC · completed bars only";if(st.length){const f=$("feedStatus");f.hidden=false;f.innerHTML="<strong>Data freshness:</strong> "+st.map(([tf,v])=>v.join(", ")+" behind SPY on "+tf).join("; ")+". Their latest bar is missing from the vendor; read those themes with caution.";}}
+function render(){renderAsOf();renderNav();renderChips();renderWarn();renderChart();renderQuad();renderTable()}
+$("trail").oninput=e=>{trail=+e.target.value;$("trailV").textContent=trail;if(D)renderChart()};
+function fail(msg){const f=$("feedStatus");f.hidden=false;f.innerHTML="<strong>NO VALID THEMATIC DATA.</strong> "+esc(msg)+" Nothing is estimated; the rest of the dashboard is unaffected.";document.querySelectorAll(".grid,section").forEach(n=>n.style.display="none")}
+fetch("data/rrg-thematic.json?ts="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Feed HTTP "+r.status+".");return r.json()}).then(d=>{
+  if(!d||d.status!=="ok")throw Error((d&&d.error)?("Latest build: "+d.error):"Feed unavailable.");
+  D=d;TH=D.themes;TH.forEach((t,i)=>COLOR[t.ticker]=PAL[i%PAL.length]);renderStatic();render();
+}).catch(e=>fail(e.message||String(e)));
+</script>
+</body>
+</html>

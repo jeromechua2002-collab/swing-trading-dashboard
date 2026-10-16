@@ -2,7 +2,7 @@
  * non-parsable inline JavaScript, or broken static relative assets. */
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const root=path.resolve(__dirname,"..");
-const pages=["index.html","rrg.html","stock-leadership.html","sector-breadth.html","rotation-lab.html","sectors.html","industries.html","rates.html","equity.html","calendar.html","trade-gate.html"];
+const pages=["index.html","rrg.html","stock-leadership.html","sector-breadth.html","rotation-lab.html","sectors.html","industries.html","rates.html","equity.html","calendar.html","trade-gate.html","thematic-rrg.html"];
 let totalScripts=0;
 for(const file of pages){
  const html=fs.readFileSync(path.join(root,file),"utf8");
@@ -31,4 +31,7 @@ assert.ok(stock.includes("StockLeadership.rank"),"Stock radar has no ranking act
 assert.ok(stock.includes("NO VALID SIGNAL"),"Stock radar must fail closed with readable error");
 const rrg=fs.readFileSync(path.join(root,"rrg.html"),"utf8");
 assert.ok(rrg.includes('BAR AS-OF')&&rrg.includes('reference-trajectory-audit.json'),"RRG chart does not label actual trading sessions/reference comparison");
+const thematic=fs.readFileSync(path.join(root,"thematic-rrg.html"),"utf8");
+assert.ok(thematic.includes("data/rrg-thematic.json")&&thematic.includes("NO VALID THEMATIC DATA"),"Thematic RRG must load its own feed and fail closed");
+assert.ok(thematic.includes("not proprietary JdK")&&thematic.includes("not evidence of institutional or fund inflows"),"Thematic RRG must carry the method and fund-flow disclaimers");
 console.log("HTML/INLINE JS AUDIT PASSED: "+pages.length+" dashboards, "+totalScripts+" scripts; no trailing corruption or missing local CSS/JS");

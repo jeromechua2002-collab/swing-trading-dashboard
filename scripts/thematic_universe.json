@@ -1,0 +1,429 @@
+{
+ "_note": "Thematic Rotation RRG universe (research display only; not used by Radar V0, Notion sync or the 10-session evaluation). Issuer data checked 2026-10-16. Holdings are each issuer's published top 10-15 only, so overlaps are lower bounds. DRAM weights: third-party Aug-2026 snapshot. REMX: VanEck blocked automated access, current weights unverified. Shadow-pilot code lives in the separate thematic-rrg-lab repo.",
+ "checked": "2026-10-16",
+ "themes": [
+  {
+   "ticker": "DRAM",
+   "theme": "Memory",
+   "fit": "Pure-play (active; MU/Samsung/SK Hynix ≈71%)",
+   "kind": "pure",
+   "gics": "Info Tech (semis)",
+   "links": [
+    {
+     "symbol": "SMH",
+     "mode": "industries"
+    },
+    {
+     "symbol": "XLK",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "AIQ",
+   "theme": "Artificial intelligence",
+   "fit": "Broad proxy (mega-cap tech heavy; top 10 ≈33%)",
+   "kind": "proxy",
+   "gics": "Info Tech, Comm Svcs, Cons Disc",
+   "links": [
+    {
+     "symbol": "XLK",
+     "mode": "stocks"
+    },
+    {
+     "symbol": "IGV",
+     "mode": "industries"
+    }
+   ]
+  },
+  {
+   "ticker": "DTCR",
+   "theme": "Data centres",
+   "fit": "Imperfect proxy (top-5 tower/data-centre REITs ≈54%)",
+   "kind": "proxy",
+   "gics": "Real Estate, Info Tech",
+   "links": [
+    {
+     "symbol": "XLRE",
+     "mode": "stocks"
+    },
+    {
+     "symbol": "VNQ",
+     "mode": "industries"
+    }
+   ]
+  },
+  {
+   "ticker": "GRID",
+   "theme": "Power grid",
+   "fit": "Thematic index (electrical equipment + grid utilities)",
+   "kind": "pure",
+   "gics": "Industrials, Utilities, Info Tech",
+   "links": [
+    {
+     "symbol": "XLI",
+     "mode": "stocks"
+    },
+    {
+     "symbol": "XLU",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "UFO",
+   "theme": "Space",
+   "fit": "Thematic index; concentrated (SpaceX ≈17%), small AUM, thin liquidity",
+   "kind": "pure",
+   "gics": "Industrials, Comm Svcs, Info Tech",
+   "links": [
+    {
+     "symbol": "ITA",
+     "mode": "industries"
+    }
+   ]
+  },
+  {
+   "ticker": "SHLD",
+   "theme": "Defence technology",
+   "fit": "Imperfect proxy (PLTR 13% + legacy primes ≈42%)",
+   "kind": "proxy",
+   "gics": "Industrials, Info Tech",
+   "links": [
+    {
+     "symbol": "ITA",
+     "mode": "industries"
+    },
+    {
+     "symbol": "XLI",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "COPX",
+   "theme": "Copper",
+   "fit": "Pure-play miners (equity, not the metal)",
+   "kind": "pure",
+   "gics": "Materials",
+   "links": [
+    {
+     "symbol": "XME",
+     "mode": "industries"
+    },
+    {
+     "symbol": "XLB",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "REMX",
+   "theme": "Rare earths",
+   "fit": "Imperfect proxy (lithium-heavy strategic metals; current weights unverified)",
+   "kind": "proxy",
+   "gics": "Materials",
+   "links": [
+    {
+     "symbol": "XME",
+     "mode": "industries"
+    },
+    {
+     "symbol": "XLB",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "URA",
+   "theme": "Uranium / nuclear fuel",
+   "fit": "Thematic index (Cameco ≈24%; holds a physical-uranium trust)",
+   "kind": "pure",
+   "gics": "Energy, Industrials",
+   "links": [
+    {
+     "symbol": "XLE",
+     "mode": "stocks"
+    },
+    {
+     "symbol": "XLU",
+     "mode": "stocks"
+    }
+   ]
+  },
+  {
+   "ticker": "CIBR",
+   "theme": "Cybersecurity",
+   "fit": "Pure-play index (includes CSCO/AVGO)",
+   "kind": "pure",
+   "gics": "Info Tech",
+   "links": [
+    {
+     "symbol": "IGV",
+     "mode": "industries"
+    },
+    {
+     "symbol": "XLK",
+     "mode": "stocks"
+    }
+   ]
+  }
+ ],
+ "excluded": [
+  {
+   "ticker": "NLR",
+   "reason": "Daily-return correlation 0.98 with URA (0.96 on excess returns, Apr–Oct 2026); about 1/3 of URA's dollar volume; more overlap with XLU."
+  },
+  {
+   "ticker": "XAR",
+   "reason": "Equal-weight aerospace/defence industry ETF, not a new theme; largely restates ITA, which is already in the production Industry RRG. Kept in the holdings file only to document the SHLD–XAR overlap (≥15%)."
+  }
+ ],
+ "facts": {
+  "DRAM": {
+   "name": "Roundhill Memory ETF",
+   "issuer": "Roundhill",
+   "inception": "2026-04-02",
+   "style": "Active; modified mkt-cap, 25% single-name cap",
+   "er": 0.65,
+   "aum": "n/a on issuer page",
+   "n": "n/a",
+   "url": "https://www.roundhillinvestments.com/etf/dram/"
+  },
+  "AIQ": {
+   "name": "Global X Artificial Intelligence & Technology ETF",
+   "issuer": "Global X",
+   "inception": "2018-05-11",
+   "style": "Index: Indxx AI & Big Data",
+   "er": 0.68,
+   "aum": "$10.23B",
+   "n": 88,
+   "url": "https://www.globalxetfs.com/funds/aiq/"
+  },
+  "DTCR": {
+   "name": "Global X Data Center & Digital Infrastructure ETF",
+   "issuer": "Global X",
+   "inception": "2020-10-27",
+   "style": "Index: Solactive Data Center REITs & Digital Infrastructure",
+   "er": 0.5,
+   "aum": "$1.98B",
+   "n": 25,
+   "url": "https://www.globalxetfs.com/funds/dtcr/"
+  },
+  "GRID": {
+   "name": "First Trust NASDAQ Clean Edge Smart Grid Infrastructure Index Fund",
+   "issuer": "First Trust",
+   "inception": "2009-11-16",
+   "style": "Index: NASDAQ Clean Edge Smart Grid Infrastructure",
+   "er": 0.56,
+   "aum": "not confirmed on issuer page",
+   "n": 123,
+   "url": "https://www.ftportfolios.com/Retail/Etf/EtfHoldings.aspx?Ticker=GRID"
+  },
+  "UFO": {
+   "name": "Procure Space ETF",
+   "issuer": "ProcureAM",
+   "inception": "2019-04-11",
+   "style": "Index: VettaFi Space",
+   "er": 0.75,
+   "aum": "$0.48B",
+   "n": 67,
+   "url": "https://www.procureetfs.com/ufo"
+  },
+  "SHLD": {
+   "name": "Global X Defense Tech ETF",
+   "issuer": "Global X",
+   "inception": "2023-09-11",
+   "style": "Index: Global X Defense Tech",
+   "er": 0.5,
+   "aum": "$6.35B",
+   "n": 50,
+   "url": "https://www.globalxetfs.com/funds/shld/"
+  },
+  "COPX": {
+   "name": "Global X Copper Miners ETF",
+   "issuer": "Global X",
+   "inception": "2010-04-19",
+   "style": "Index: Solactive Global Copper Miners",
+   "er": 0.65,
+   "aum": "$6.87B",
+   "n": 40,
+   "url": "https://www.globalxetfs.com/funds/copx/"
+  },
+  "REMX": {
+   "name": "VanEck Rare Earth and Strategic Metals ETF",
+   "issuer": "VanEck",
+   "inception": "2010-10-27",
+   "style": "Index: MVIS Global Rare Earth/Strategic Metals",
+   "er": null,
+   "aum": "$2.24B (2026-09-03)",
+   "n": "34 (May-2026 fact sheet)",
+   "url": "https://www.vaneck.com/us/en/investments/rare-earth-strategic-metals-etf-remx/"
+  },
+  "URA": {
+   "name": "Global X Uranium ETF",
+   "issuer": "Global X",
+   "inception": "2010-11-04",
+   "style": "Index: Solactive Global Uranium & Nuclear Components",
+   "er": 0.69,
+   "aum": "$5.04B",
+   "n": 60,
+   "url": "https://www.globalxetfs.com/funds/ura/"
+  },
+  "CIBR": {
+   "name": "First Trust NASDAQ Cybersecurity ETF",
+   "issuer": "First Trust",
+   "inception": "2015-07-06",
+   "style": "Index: Nasdaq CTA Cybersecurity",
+   "er": 0.58,
+   "aum": "$18.12B",
+   "n": 45,
+   "url": "https://www.ftportfolios.com/Retail/Etf/EtfSummary.aspx?Ticker=CIBR"
+  }
+ },
+ "holdings": {
+  "DRAM": {
+   "asof": "2026-08-16 (third-party)",
+   "h": {
+    "MU": 25.42,
+    "SAMSUNG": 25.4,
+    "SKHYNIX": 20.44
+   }
+  },
+  "AIQ": {
+   "asof": "2026-10-15",
+   "h": {
+    "PLTR": 4.46,
+    "MSFT": 3.88,
+    "SPCX": 3.45,
+    "META": 3.33,
+    "TSLA": 3.11,
+    "ORCL": 3.07,
+    "GOOGL": 3.02,
+    "AMZN": 2.99,
+    "AAPL": 2.92,
+    "NFLX": 2.89
+   }
+  },
+  "DTCR": {
+   "asof": "2026-10-15",
+   "h": {
+    "AMT": 13.92,
+    "DLR": 12.82,
+    "EQIX": 12.61,
+    "CCI": 9.77,
+    "SBAC": 4.77,
+    "KDCREIT": 4.38,
+    "GDS": 3.68,
+    "APLD": 3.41,
+    "NXT": 3.08,
+    "SMCI": 2.81
+   }
+  },
+  "GRID": {
+   "asof": "2026-10-14",
+   "h": {
+    "PWR": 8.83,
+    "JCI": 8.67,
+    "ETN": 8.26,
+    "ABBN": 7.83,
+    "SU": 7.02,
+    "NG": 4.01,
+    "EOAN": 3.79,
+    "PRY": 3.66,
+    "NVT": 2.83,
+    "HUBB": 2.62,
+    "NVDA": 2.03,
+    "TSLA": 2.02,
+    "CSCO": 1.95,
+    "TRN": 1.84,
+    "H": 1.47
+   }
+  },
+  "UFO": {
+   "asof": "2026-10-15",
+   "h": {
+    "SPCX": 16.51,
+    "TRMB": 5.35,
+    "GRMN": 5.29,
+    "ECHO": 4.92,
+    "RKLB": 4.92,
+    "SIRI": 4.73,
+    "VSAT": 4.28,
+    "ASTS": 3.62,
+    "GSAT": 3.37,
+    "IRDM": 3.28
+   }
+  },
+  "SHLD": {
+   "asof": "2026-10-15",
+   "h": {
+    "PLTR": 12.57,
+    "RTX": 9.07,
+    "LMT": 8.57,
+    "GD": 8.43,
+    "NOC": 7.73,
+    "BA.L": 4.62,
+    "RHM": 3.89,
+    "SAAB": 3.72,
+    "LHX": 3.72,
+    "HO": 3.63
+   }
+  },
+  "COPX": {
+   "asof": "2026-10-15",
+   "h": {
+    "TECK": 5.81,
+    "SCCO": 5.61,
+    "HBM": 5.54,
+    "FCX": 5.26,
+    "GLEN": 5.14,
+    "BHP": 5.12,
+    "KGH": 4.76,
+    "FM": 4.74,
+    "ANTO": 4.56,
+    "BOL": 4.55
+   }
+  },
+  "REMX": {
+   "asof": "unavailable",
+   "h": {}
+  },
+  "URA": {
+   "asof": "2026-10-15",
+   "h": {
+    "CCO": 23.54,
+    "U.U": 7.48,
+    "NXE": 6.24,
+    "OKLO": 5.18,
+    "KAP": 4.9,
+    "UEC": 4.5,
+    "LEU": 2.73,
+    "SSW": 2.66,
+    "8001": 2.58,
+    "DML": 2.51
+   }
+  },
+  "CIBR": {
+   "asof": "2026-10-14",
+   "h": {
+    "CRWD": 8.32,
+    "FTNT": 8.3,
+    "CSCO": 7.93,
+    "PANW": 7.56,
+    "AVGO": 7.21,
+    "OKTA": 4.45,
+    "NET": 4.1,
+    "ZS": 3.95,
+    "FFIV": 3.68,
+    "RBRK": 2.65,
+    "NTAP": 2.31,
+    "DT": 2.24,
+    "DDOG": 2.19,
+    "ACN": 2.18,
+    "MSFT": 2.03
+   }
+  }
+ },
+ "holdings_note": "Top holdings copied from issuer pages on 2026-10-16 (as-of dates per fund). Top-N only, so overlap figures are LOWER BOUNDS. DRAM weights are from a third-party Aug-2026 snapshot (issuer page lists names without weights). REMX/NLR: VanEck pages blocked automated access, so current weights are unverified. NLR and XAR are not in the 10-theme universe; XAR is kept only to document the SHLD–XAR overlap."
+}

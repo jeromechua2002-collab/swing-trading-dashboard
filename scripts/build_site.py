@@ -17,12 +17,13 @@ from journal_public import find_private_markers, validate_public
 
 STOCK_SECTORS = ("XLK", "XLY", "XLC", "XLF", "XLI", "XLB", "XLV", "XLE", "XLP", "XLU", "XLRE")
 PAGES = ("index.html", "rrg.html", "rotation-lab.html", "stock-leadership.html", "sector-breadth.html",
-         "trade-gate.html", "equity.html", "calendar.html", "sectors.html", "industries.html", "rates.html")
+         "trade-gate.html", "equity.html", "calendar.html", "sectors.html", "industries.html", "rates.html",
+         "thematic-rrg.html")
 ASSETS = ("dashboard.css", "desk-home.css", "desk-health.js", "stock-leadership.js", "trade-gate.js",
           "breadth-feed.js", "breadth-confirmation.js", ".nojekyll")
 DATA = ("data/rrg-core.json", "data/rrg-audit.json", "data/rrg-validation.json", "data/rrg-sensitivity.json",
         "data/rrg-reference-trajectory-audit.json", "data/sector-breadth.json",
-        "data/journal-performance.json", "data/release-manifest.json",
+        "data/journal-performance.json", "data/release-manifest.json", "data/rrg-thematic.json",
         *(f"data/stocks/{s}.json" for s in STOCK_SECTORS))
 ALLOWED = (*PAGES, *ASSETS, *DATA)
 ALLOWED_SUFFIXES = {".html", ".css", ".js", ".json", ""}

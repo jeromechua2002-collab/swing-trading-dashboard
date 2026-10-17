@@ -6,6 +6,8 @@ from price_context import summarize_closes
 from pathlib import Path
 
 import exchange_calendars as xcals
+
+import radar_bundle
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -303,7 +305,7 @@ def download_prices(tickers: list[str], cfg: dict) -> pd.DataFrame:
     raise RuntimeError(f"Yahoo download failed after 3 attempts: {last_exc}")
 
 
-def refresh_lagging_daily_closes(closes: dict, cfg: dict, build_now) -> dict:
+def refresh_lagging_daily_closes(closes: dict, cfg: dict, build_now, sources: dict | None = None) -> dict:
     """Retry lagging vendor daily bars but never invent or forward-fill closes."""
     bench = closes.get(MARKET_BENCHMARK)
     if bench is None or bench.dropna().empty:
@@ -326,6 +328,8 @@ def refresh_lagging_daily_closes(closes: dict, cfg: dict, build_now) -> dict:
             series, _ = prepare_series(close_series(refreshed, ticker), cfg, build_now)
             if not series.dropna().empty and series.dropna().index[-1] == expected:
                 closes[ticker] = series
+                if sources is not None:
+                    sources[ticker] = refreshed
                 recovered += 1
         except Exception:
             pass
@@ -429,12 +433,14 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: dateti
     build_now = build_now or now_utc()
     data = download_prices(tickers, cfg)
     closes = {}
+    sources = {}  # download that produced each validated series (radar bundle only)
     dropped_forming = 0
     for ticker in tickers:
         try:
             series, dropped = prepare_series(close_series(data, ticker), cfg, build_now)
             dropped_forming += dropped
             closes[ticker] = series
+            sources[ticker] = data
         except Exception as exc:
             print(f"{label} batch missing {ticker}: {exc}")
 
@@ -452,6 +458,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: dateti
             series, dropped = prepare_series(raw, cfg, build_now)
             dropped_forming += dropped
             closes[ticker] = series
+            sources[ticker] = one
             print(f"{label}: recovered {ticker} on individual retry")
         except Exception as exc:
             print(f"{label} individual retry failed {ticker}: {exc}")
@@ -460,7 +467,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: dateti
         raise RuntimeError(f"{label}: benchmark {MARKET_BENCHMARK} unavailable")
 
     if label == "1D":
-        closes = refresh_lagging_daily_closes(closes, cfg, build_now)
+        closes = refresh_lagging_daily_closes(closes, cfg, build_now, sources)
 
     if dropped_forming:
         print(f"{label}: removed {dropped_forming} still-forming vendor bars (bar end after build clock {build_now.isoformat()})")
@@ -480,6 +487,7 @@ def build_timeframe(label: str, cfg: dict, tickers: list[str], build_now: dateti
                 print(f"{label}: aligning {len(closes)} symbols to common completed timestamp {cutoff}; newest {newest} not yet available for every symbol")
             closes = {t: v.loc[v.index <= cutoff] for t, v in closes.items()}
 
+    radar_bundle.capture(label, closes, sources)
     spy = closes[MARKET_BENCHMARK]
 
     sectors = {}
@@ -698,6 +706,12 @@ def main() -> None:
     Path("data/rrg.json").write_text(
         json.dumps(legacy_payload, indent=2), encoding="utf-8"
     )
+
+    if radar_bundle.enabled():
+        session = core_payload["timeframes"]["1D"]["benchmark_price"][-1]["time"][:10]
+        stock_payloads = {s: json.loads(Path(f"data/stocks/{s}.json").read_text()) for s in STOCK_GROUPS}
+        radar_bundle.write(session, core_payload["generated_at"],
+                           {"rrg_core": core_payload, "rrg_stocks": stock_payloads})
 
     for tf, block in timeframes.items():
         stock_count = sum(

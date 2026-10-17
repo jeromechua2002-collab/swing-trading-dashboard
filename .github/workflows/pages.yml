@@ -78,6 +78,9 @@ jobs:
       - name: Test dated reference crossovers without forward-looking data
         run: python -m unittest discover -s scripts -p 'test_reference_trajectory.py' -v
 
+      - name: Test thematic RRG feed (offline, fail-closed)
+        run: python -m unittest discover -s scripts -p 'test_thematic_rrg.py' -v
+
       - name: Test completed-bar policy (NYSE calendar, holidays, early closes, DST)
         run: python -m unittest discover -s scripts -p 'test_completed_bars.py' -v
 
@@ -106,6 +109,9 @@ jobs:
 
       - name: Build RRG data
         run: python scripts/build_rrg_data.py
+
+      - name: Build thematic RRG data (display only; isolated and fail-closed)
+        run: python scripts/build_thematic_rrg.py
 
       - name: Validate RRG against EdgeRater benchmark
         run: python scripts/validate_rrg.py

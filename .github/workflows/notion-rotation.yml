@@ -13,9 +13,10 @@ on:
     # Catch-up at 11:30 SGT Tue-Sat if the prior US close missed the main run.
     # The sync checks Notion against the latest SPY date and skips a fresh snapshot.
     - cron: "30 3 * * 2-6"
-    # Extra post-close slots: GitHub has started scheduled runs 2-5 h late, and Yahoo's
-    # daily bar can appear after the 22:15 run. Each run skips when Notion is current.
-    - cron: "30 1 * * 2-6"
+    # Extra post-close slot: GitHub has started scheduled runs 2-5 h late, and Yahoo's
+    # daily bar can appear after the 22:15 run. The run skips when Notion is current.
+    # (A 01:30 UTC slot was dropped 2026-11-12: it ran before Yahoo had posted every
+    # ETF close, so its validation failed and emailed on most weekdays.)
     - cron: "0 6 * * 2-6"
 
 permissions:

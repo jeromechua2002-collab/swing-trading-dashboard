@@ -1,6 +1,7 @@
 /* Transparent interpretation of the cap/equal-weight lesson. Experimental,
    relative context only; never an execution or win-probability model. */
 (function(root){
+const NEAR_LINE=0.35;
 function rotation(trail){
  if(!Array.isArray(trail)||trail.length<4)throw Error('Four RRG points are required');
  const a=trail.slice(-4),h=a.at(-1),first=a[0];
@@ -8,9 +9,12 @@ function rotation(trail){
  const dx=(h.ratio-first.ratio)/3,dy=(h.momentum-first.momentum)/3,noise=.015;
  const direction=dx>noise&&dy>noise?'improving':dx < -noise&&dy < -noise?'deteriorating':'mixed';
  const quadrant=h.ratio>=100?(h.momentum>=100?'Leading':'Weakening'):(h.momentum>=100?'Improving':'Lagging');
+ // Same boundary rule as the RRG page: heads within NEAR_LINE of a centre line are flagged, not hidden.
+ const quad=(x,y)=>x>=100?(y>=100?'Leading':'Weakening'):(y>=100?'Improving':'Lagging'),nx=Math.abs(h.ratio-100)<NEAR_LINE,ny=Math.abs(h.momentum-100)<NEAR_LINE;
+ const alt=nx||ny?quad(nx?(h.ratio>=100?99:101):h.ratio,ny?(h.momentum>=100?99:101):h.momentum):quadrant,near=alt===quadrant?'':alt;
  const phase=direction==='improving'?(quadrant==='Improving'?'Recovery gaining strength':quadrant==='Leading'?'Leader extending':quadrant==='Lagging'?'Early turn inside Lagging':'Momentum rebuilding'):
  direction==='deteriorating'?(quadrant==='Weakening'?'Leader fading toward Lagging':quadrant==='Lagging'?'Weakness extending':'Early deterioration'):'Tail directions disagree or are near flat';
- return {direction,quadrant,phase,dx,dy,head:h};
+ return {direction,quadrant,near,phase,dx,dy,head:h};
 }
 function confirmation(d,cap,thesis='long',lens='video',scope='sector',window='20'){
  const r=d.rows.find(r=>r.cap===cap);if(!r)throw Error('Sector pair missing');

@@ -102,7 +102,7 @@ body{overflow-x:hidden}
   </div>
 </section>
 
-<section id="referenceNotice" role="status" aria-live="polite" style="margin:0 0 9px;padding:9px 12px;border:1px solid #56657a;border-left:4px solid #d6a54a;border-radius:9px;background:#20232c;color:#e4d4ac;font-size:12px;line-height:1.55">Checking the actual trading-session date against the October 13 EdgeRater screenshots…</section>
+<section id="referenceNotice" role="status" aria-live="polite" style="margin:0 0 9px;padding:7px 12px;border:1px solid #2c3644;border-radius:9px;background:#151b24;color:#9fadbd;font-size:11.5px;line-height:1.5">Loading model notes…</section>
 
 <section class="benchmark-panel">
   <div class="panel-head2">
@@ -189,6 +189,9 @@ const BGS={Leading:"rgba(59,178,115,.11)",Weakening:"rgba(215,169,40,.11)",Laggi
 
 function E(tag,attrs,text){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{})) n.setAttribute(k,v);if(text)n.textContent=text;return n}
 function quadrant(x,y){if(x>=100&&y>=100)return"Leading";if(x>=100&&y<100)return"Weakening";if(x<100&&y<100)return"Lagging";return"Improving"}
+// Heads this close to a centre line can land in a different quadrant on EdgeRater or the next bar.
+const NEAR_LINE=0.35;
+function nearQuadrant(x,y){const nx=Math.abs(x-100)<NEAR_LINE,ny=Math.abs(y-100)<NEAR_LINE;if(!nx&&!ny)return"";const alt=quadrant(nx?(x>=100?99:101):x,ny?(y>=100?99:101):y);return alt===quadrant(x,y)?"":alt}
 function slugQuad(q){return q.toLowerCase()}
 function signalMetrics(arr){
   if(!arr||arr.length<3)return{distance:0,speed:0,straightness:0,clarity:"weak",dx:0,dy:0,angle:0,score:0};
@@ -321,7 +324,7 @@ function buildSymbolList(){
       tickerLabel.appendChild(sw);tickerLabel.appendChild(document.createTextNode(t));
       tickerLabel.addEventListener("click",()=>{if(mode==="sectors")location.href="rrg.html?mode=stocks&sector="+t});
       const m=signalMetrics(db[t]);
-      const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);quadLabel.textContent=q+" · "+directionLabel(m);
+      const quadLabel=document.createElement("span");quadLabel.className="quad "+slugQuad(q);const near=p?nearQuadrant(p.ratio,p.momentum):"";quadLabel.textContent=q+(near?" (near "+near+")":"")+" · "+directionLabel(m);if(near)quadLabel.title="Within "+NEAR_LINE+" of a centre line: a boundary reading that can differ from EdgeRater.";
       const sig=document.createElement("span");sig.className="signal-chip "+m.clarity;sig.textContent=m.clarity==="strong"?"Strong":m.clarity==="developing"?"Developing":"Weak";
       tickerLabel.appendChild(sig);
       row.appendChild(checkbox);row.appendChild(tickerLabel);row.appendChild(quadLabel);
@@ -578,31 +581,14 @@ function fullRender(){
   const sourceDate=lastBar?lastBar.time.slice(0,10):"unknown";
   const daily=((payload.timeframes||{})["1D"]||{}).benchmark_price||[];
   const dailyDate=daily.length?daily[daily.length-1].time.slice(0,10):"unknown";
-  const comp=trajectoryAudit && tf==="1D" ? " · EdgeRater 2026-10-13: "+(
-    trajectoryAudit.status==="REF_NOT_YET_AVAILABLE"?"NOT YET COMPARABLE (model older)":
-    trajectoryAudit.status==="SAME_DATE_DIVERGENCES"?"MODEL DIFFERENCES FLAGGED ("+trajectoryAudit.mismatches.length+")":
-    trajectoryAudit.status==="SAME_DATE_QUADRANTS_AGREE"?"dated quadrant sample matched":"reference unavailable") : "";
-  document.getElementById("updated").textContent="BAR AS-OF "+sourceDate+" ("+tf+") · Daily "+dailyDate+" · built "+new Date(payload.generated_at).toLocaleString()+comp;
+  document.getElementById("updated").textContent="BAR AS-OF "+(tf==="1D"?dailyDate+" close (last completed U.S. session)":sourceDate+" ("+tf+") · daily close "+dailyDate)+" · built "+new Date(payload.generated_at).toLocaleString();
   const note=document.getElementById("referenceNotice");
-  if(trajectoryAudit && tf==="1D"){
-    const aud=trajectoryAudit;
-    if(aud.status==="REF_NOT_YET_AVAILABLE"){
-      note.textContent="Source date mismatch: this daily model ends "+dailyDate+"; your EdgeRater screenshots end "+aud.reference_date+". A one-session-old RRG cannot establish a late or early quadrant crossing. Recheck after the next completed-session build.";
-      note.style.borderLeftColor="#d6a54a";
-    }else if(aud.status==="SAME_DATE_DIVERGENCES"){
-      note.textContent="Same-date EdgeRater comparison: "+aud.mismatches.length+" conflicting quadrant observations (of "+aud.compared+" screenshot labels checked). This public approximation is NOT equivalent to EdgeRater; inspect the reference audit before using the signal.";
-      note.style.borderLeftColor="#ed8791";
-    }else if(aud.status==="SAME_DATE_QUADRANTS_AGREE"){
-      note.textContent="Same-date quadrant check passed for "+aud.compared+" screenshot labels. Full path shape and turning-point speed are NOT verified: proprietary EdgeRater trajectories may still differ.";
-      note.style.borderLeftColor="#68d5aa";
-    }else{
-      note.textContent="Daily model bar "+dailyDate+" · Reference "+aud.reference_date+" · historical comparison outside current trail. No parity claim.";
-      note.style.borderLeftColor="#d6a54a";
-    }
-  }else{
-    note.textContent="Source timestamps: "+tf+" benchmark bar "+sourceDate+" · daily completed bar "+dailyDate+". The daily EdgeRater screenshot comparison cannot verify intraday or weekly model equivalence.";
-    note.style.borderLeftColor="#56657a";
-  }
+  const audit=trajectoryAudit&&tf==="1D"&&trajectoryAudit.status==="SAME_DATE_DIVERGENCES"
+    ?" Last dated screenshot check ("+trajectoryAudit.reference_date+"): "+trajectoryAudit.mismatches.length+" of "+trajectoryAudit.compared+" quadrant labels differed."
+    :trajectoryAudit&&tf==="1D"&&trajectoryAudit.status==="SAME_DATE_QUADRANTS_AGREE"
+    ?" Last dated screenshot check ("+trajectoryAudit.reference_date+"): all "+trajectoryAudit.compared+" quadrant labels matched."
+    :"";
+  note.innerHTML="<strong>Model note:</strong> public approximation of an EdgeRater-style RRG, not the proprietary formula. Labels marked <em>near</em> sit within "+NEAR_LINE+" of a centre line and can fall in a different quadrant on EdgeRater."+audit+(audit?' <a href="data/rrg-reference-trajectory-audit.json" style="color:#8fb8e8">Audit details</a>':"");
 
   document.getElementById("plotMeta").textContent="Benchmark "+benchmark+" · 100/100 · "+tf+" bars through "+sourceDate+" · Public approximation, not EdgeRater-native";
 

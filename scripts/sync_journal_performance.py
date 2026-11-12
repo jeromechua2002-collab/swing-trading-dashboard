@@ -87,17 +87,20 @@ def read_private_trades():
     if not account:
         raise RuntimeError("Swing account identifier is not configured")
     rows=fetch_all()
-    closed=[]; seen=set(); flagged=0; unlinked=0
+    closed=[]; seen=set(); flagged=0; unlinked=0; unlinked_numbers=set(); other_status=set()
     for row in rows:
         p=row.get("properties",{})
         status=sel(p.get("Trade Status"))
-        if status not in ("Closed","Open"): continue
+        number_id=number(p.get("Trade #"))
+        if status not in ("Closed","Open"):
+            if number_id: other_status.add(int(number_id))
+            continue
         if account not in {x.lower() for x in related(p.get("Account"))}:
             unlinked+=1
+            if number_id: unlinked_numbers.add(int(number_id))
             continue
         if not text(p.get("Symbol")): raise RuntimeError("A journal trade has no symbol")
         qty=number(p.get("Position Size"))
-        number_id=number(p.get("Trade #"))
         if not number_id or number_id in seen: raise RuntimeError("Missing or duplicate trade number in linked account")
         seen.add(number_id)
         if status=="Open":
@@ -131,13 +134,24 @@ def read_private_trades():
     numbers={int(n) for n in seen}
     missing=sorted(set(range(1,max(numbers,default=0)+1))-numbers)
     if not numbers or missing:
-        # Trade numbers alone carry no symbol, size or amount; listing them lets
-        # the owner fix the Notion Account relation without exposing detail.
-        raise RuntimeError("Journal trade numbers are not contiguous among swing-account trades; "
-                           f"missing #{', #'.join(map(str,missing)) or '1'} "
-                           f"({unlinked} row(s) excluded as not linked to the swing account). "
-                           "Link those trades to the swing account in Notion.")
+        # Trade numbers alone carry no symbol, size or amount; naming each gap's
+        # cause lets the owner fix Notion without exposing detail.
+        raise RuntimeError(contiguity_error(missing or [1], unlinked_numbers, other_status))
     return closed, flagged, unlinked
+
+
+def contiguity_error(missing, unlinked, other_status):
+    """Explain each missing trade number by cause, using trade numbers only."""
+    groups={"a Closed/Open row that is not linked to the swing account (link it)":[],
+            "a row whose Trade Status is neither Closed nor Open (fix the status)":[],
+            "no row in the trades database (if it was deleted, renumber the later trades)":[]}
+    labels=list(groups)
+    for n in missing:
+        if n in unlinked: groups[labels[0]].append(n)
+        elif n in other_status: groups[labels[1]].append(n)
+        else: groups[labels[2]].append(n)
+    causes="; ".join(f"#{', #'.join(map(str,ns))}: {why}" for why,ns in groups.items() if ns)
+    return f"Journal trade numbers are not contiguous among swing-account trades. Missing {causes}."
 
 
 def export(now=None, out=None):
